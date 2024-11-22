@@ -1,7 +1,7 @@
 import os
 import discord
 from discord.ext import commands
-from keep_alive import keep_alive
+# from keep_alive import keep_alive
 import time
 import math
 from askb import askb_of_the_day, num_rolls, roll, append_favorite, members
@@ -531,7 +531,6 @@ def plus_One_all(oh_no):
     with open('members.json', 'w') as output_file:
       output_file.write(jsonpickle.encode(members, indent=1))
 
-
-plus_One_all(oh_no)
-keep_alive()
-client.run(TOKEN)
+def run_app():
+  plus_One_all(oh_no)
+  client.run(TOKEN)

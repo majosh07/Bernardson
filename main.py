@@ -1,6 +1,7 @@
+from dotenv import load_dotenv
 import os
 import discord
-from discord.ext import commands
+from discord.ext.commands import Bot
 # from keep_alive import keep_alive
 import time
 import math
@@ -11,35 +12,38 @@ delay = 2
 
 current_time = time.time()
 
-TOKEN = os.environ['TOKEN']
+load_dotenv()
+TOKEN = os.environ.get('TOKEN')
+if TOKEN is None:
+  raise ValueError("TOKEN not set correctly, check .env...")
 
-intents = discord.Intents.all()
-intents.messages = True
+intents = discord.Intents.default()
+intents.message_content= True
 
-client = commands.Bot(command_prefix=';;', intents=intents)
+bot = Bot(command_prefix=';;', intents=intents)
 
 
-@client.event
+@bot.event
 async def on_ready():
-  print(f'{client.user.name} has connected to Discord.')
+  print(f'{bot.user} has connected to Discord.')
 
 
-@client.command(aliases=['info', 'inform'])
+@bot.command(aliases=['info', 'inform'])
 async def information(ctx):
   await ctx.send(embed=make_information())
 
 
-@client.command()
+@bot.command()
 async def commands(ctx):
   await ctx.send(embed=askb_commands())
 
 
-@client.command(aliases=['exinfo', 'einfo'])
+@bot.command(aliases=['exinfo', 'einfo'])
 async def extra_information(ctx):
   await ctx.send(embed=extra_info())
 
 
-# @client.command(aliases = ['askb', 'Bernardson'])
+# @bot.command(aliases = ['askb', 'Bernardson'])
 # async def bernardson(ctx):
 #   if time_okay():
 #     global current_time
@@ -47,10 +51,10 @@ async def extra_information(ctx):
 #     message = get_rollkb()
 #     await ctx.send(message)
 
-import jsonpickle
+# import jsonpickle
 
 
-@client.command(aliases=['d', 'b', 'askbofday', 'askb'])
+@bot.command(aliases=['d', 'b', 'askbofday', 'askb'])
 async def the_day(ctx):
   if not time_okay():
     return
@@ -72,7 +76,7 @@ async def the_day(ctx):
   await ctx.send(message)
 
 
-@client.command(aliases=['r', 'roll'])
+@bot.command(aliases=['r', 'roll'])
 async def the_roll(ctx):
   if time_okay():
     global current_time
@@ -107,7 +111,7 @@ async def the_roll(ctx):
 
 
 # Format for message is ;;s (tier) (page number)
-@client.command(aliases=['show', 's'])
+@bot.command(aliases=['show', 's'])
 async def show_all(ctx, *, message):
   if time_okay():
     global current_time
@@ -207,7 +211,7 @@ async def show_all(ctx, *, message):
       await ctx.send('Please use either "S","A","B","C","ALL" at the end.')
 
 
-@client.command(aliases=['f', 'fav'])
+@bot.command(aliases=['f', 'fav'])
 async def favorite(ctx, message):
   inventory = members[str(ctx.author.id)]
   if message[0].isdigit():
@@ -228,7 +232,7 @@ async def favorite(ctx, message):
       await ctx.send('Need a Number ID or "ALL"...')
 
 
-@client.command(aliases=['savfav'])
+@bot.command(aliases=['savfav'])
 async def show_favorite(ctx, message):
   author = ctx.author
   if not message.isnumeric():
@@ -289,29 +293,29 @@ def extra_info():
     url="https://media.tenor.com/JEupJ2TM_0IAAAAd/askb-bernardson.gif")
   embed.set_footer(text='Made by jporh')
   embed.add_field(
-    name="**(askboftheday)\n\;;d**",
+    name="**(askboftheday)\n;;d**",
     value=
     "Every 7 days gain 2 Rolls\n Ex: Have 6 Rolls and then ;;d, now have 8 Rolls"
   )
   embed.add_field(
-    name="**(roll)\n\;;r**",
+    name="**(roll)\n;;r**",
     value=
     "Chances for S-Tier are at base about 1% and for A-Tier about 9%\n You are guaranteed a S-Tier every 30 rolls and an A-Tier every 10 rolls"
   )
   embed.add_field(
-    name="**(Show your gifs)\n\;;s**",
+    name="**(Show your gifs)\n;;s**",
     value=
-    "Ex: \;;s B 2(This would show you page 2 of your B-Tiers)\n Also you can do \;;s all to see more general stats"
+    "Ex: ;;s B 2(This would show you page 2 of your B-Tiers)\n Also you can do ;;s all to see more general stats"
   )
   embed.add_field(
-    name="**(Save gifs to favorite)\n\;;savfav**",
+    name="**(Save gifs to favorite)\n;;savfav**",
     value=
     "Ex: ;;savfav 1001\nThis would save the 1st gif\n Can only save gifs that you have"
   )
   embed.add_field(
-    name="**(show favorite gifs)\n\;;f**",
+    name="**(show favorite gifs)\n;;f**",
     value=
-    "You can do \;;f all to see all of your favorite gifs that will be sent to your DMs"
+    "You can do ;;f all to see all of your favorite gifs that will be sent to your DMs"
   )
   return embed
 
@@ -366,7 +370,7 @@ def command_info():
   return embed
 
 
-@client.command(aliases=['au', 'mogus', 'amogus', 'peensus', 'sus'])
+@bot.command(aliases=['au', 'mogus', 'amogus', 'peensus', 'sus'])
 async def among_us(ctx):
   if time_okay():
     global current_time
@@ -376,7 +380,7 @@ async def among_us(ctx):
     )
 
 
-@client.command(aliases=['os'])
+@bot.command(aliases=['os'])
 async def OmegaStrikers(ctx):
   if time_okay():
     global current_time
@@ -386,7 +390,7 @@ async def OmegaStrikers(ctx):
     )
 
 
-@client.command(aliases=['bl', 'bobble'])
+@bot.command(aliases=['bl', 'bobble'])
 async def Bobble_League(ctx):
   if time_okay():
     global current_time
@@ -396,7 +400,7 @@ async def Bobble_League(ctx):
     )
 
 
-@client.command(aliases=['bc', 'bing-chilling'])
+@bot.command(aliases=['bc', 'bing-chilling'])
 async def Bing_Chilling(ctx):
   if time_okay():
     global current_time
@@ -406,7 +410,7 @@ async def Bing_Chilling(ctx):
     )
 
 
-@client.command(aliases=['lol'])
+@bot.command(aliases=['lol'])
 async def League_Of_Legends(ctx):
   if time_okay():
     global current_time
@@ -416,7 +420,7 @@ async def League_Of_Legends(ctx):
     )
 
 
-@client.command(aliases=['vl'])
+@bot.command(aliases=['vl'])
 async def valorant(ctx):
   if time_okay():
     global current_time
@@ -426,7 +430,7 @@ async def valorant(ctx):
     )
 
 
-@client.command(aliases=['rr'])
+@bot.command(aliases=['rr'])
 async def RR(ctx, thing, *, number):
   if time_okay():
     global current_time
@@ -443,7 +447,7 @@ async def RR(ctx, thing, *, number):
       await ctx.send("Send one of the valid RR commands, see ;;commands")
 
 
-@client.command(aliases=['nr'])
+@bot.command(aliases=['nr'])
 async def nate_reed(ctx, number):
   if time_okay():
     global current_time
@@ -462,7 +466,7 @@ async def nate_reed(ctx, number):
                      )
 
 
-@client.command(aliases=['op'])
+@bot.command(aliases=['op'])
 async def one_piece(ctx):
   if time_okay():
     global current_time
@@ -472,7 +476,7 @@ async def one_piece(ctx):
     )
 
 
-@client.command(aliases=['omgg', 'OMGG'])
+@bot.command(aliases=['omgg', 'OMGG'])
 async def oh_my_goodness_gracious(ctx, *, phrase):
   if time_okay():
     global current_time
@@ -523,14 +527,16 @@ def time_okay():
     return False
 
 
-def plus_One_all(oh_no):
-  if oh_no:
-    for member in members:
-      members[member].rolls += 1
-      print(members[member].rolls)
-    with open('members.json', 'w') as output_file:
-      output_file.write(jsonpickle.encode(members, indent=1))
+# def plus_One_all(oh_no):
+#   if oh_no:
+#     for member in members:
+#       members[member].rolls += 1
+#       print(members[member].rolls)
+#     with open('members.json', 'w') as output_file:
+#       output_file.write(jsonpickle.encode(members, indent=1))
 
-def run_app():
-  plus_One_all(oh_no)
-  client.run(TOKEN)
+  # plus_One_all(oh_no)
+bot.run(TOKEN)
+
+
+

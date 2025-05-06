@@ -311,3 +311,8 @@ tier_values = ['S', 'A', 'S', 'S', 'A', 'S', 'B', 'B', 'A', 'C', 'A', 'A', 'B', 
 khaled_gifs = ["https://tenor.com/view/twerk-dj-khaled-gif-16758313558864362681", "https://tenor.com/view/dj-khaled-gif-3740296292828441808", "https://tenor.com/view/hopewink-dj-khaled-gif-5654575335784931802", "https://tenor.com/view/cakeuis-dj-khaled-gif-24296363", "https://tenor.com/view/dj-khaled-you-played-yourself-gif-23667349", "https://tenor.com/view/budgetapproved-dj-khaled-khaled-biaheza-plane-gif-5441397995838392447", "https://tenor.com/view/life-is-roblox-life-roblox-is-dj-khaled-gif-8271039727770837203"]
 
 khaled_tiers = ['S', 'S', 'S', 'S', 'A', 'B', 'S']
+
+
+print(len(askb_list) + len(khaled_gifs))
+print(len(tier_values) + len(khaled_tiers))
+

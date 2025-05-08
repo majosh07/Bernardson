@@ -30,7 +30,13 @@ Work Done so Far
  - Began migration to PostgreSQL
    - moved all gifs over to db
    - running postgres on localhost
+
+   - began ironing out timezones and how daily works, going to use 4 AM reset
+   - need to figure out TIME zone in the postgres database
+
+
    - figure out how to do users(maybe wipe?)
+
 
 
 

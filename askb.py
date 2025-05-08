@@ -1,16 +1,32 @@
+from dotenv import load_dotenv
+import os
+import discord
 from discord.ext.commands import Bot
 from gacha import Gacha
+from database import Database
+
+load_dotenv()
+TOKEN = os.environ.get('TOKEN')
+if TOKEN is None:
+  raise ValueError("TOKEN not set correctly, check .env...")
+
+intents = discord.Intents.default()
+intents.message_content= True
 
 
 class askBernardson(Bot):
-  def __init__(self, **kwargs):
-    super().__init__(**kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.db = Database()
+    async def setup_hook(self) -> None:
+        await self.add_cog(Gacha(self, self.db))
 
-  async def setup_hook(self) -> None:
-    await self.add_cog(Gacha(self))
+    async def on_ready(self):
+        print(f'{self.user} has connected to Discord.')
 
-  async def on_ready(self):
-    print(f'{self.user} has connected to Discord.')
 
+
+bot = askBernardson(command_prefix=';;', intents=intents)
+bot.run(TOKEN)
 
 

@@ -22,7 +22,7 @@ Adding in things that show my experience
 Want to 
  - use a real database
  - encourage semi frequent activity
- - encourage multiple people at a time to partiticipate
+ - encourage multiple people at a time to participate
     - don't need always have multiple people
 
 
@@ -30,18 +30,22 @@ Work Done so Far
  - Began migration to PostgreSQL
    - moved all gifs over to db
    - running postgres on localhost
-
-   - began ironing out timezones and how daily works, going to use 4 AM reset
-   - need to figure out TIME zone in the postgres database
+   - Added the day to day check
 
 
-   - figure out how to do users(maybe wipe?)
-
+   - figure out how to do the random gif and add to the daily gifs
+   - figure out how to do users(maybe wipe?)  
 
 
 
 
 
+Time Zones for Postgres
+  - effectively ignore it while in DB
+  - do the adjustment for timezone in code
+  - Doing the timedelta(4) subtraction to have reset be at 4AM instead of 12AM
+Made a floating terminal for Nvim
+  - using Nvims commands/api
 
 
 

@@ -1,36 +1,35 @@
 from discord.ext import commands
 from database import Database
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 
 class Gacha(commands.Cog):
     def __init__(self, bot, db : Database) -> None:
         self.bot = bot
+        self.db = db
         self.num_gifs = db.get_num_gifs()
         self.last_status = db.get_last_status()
-        print(self.check_if_next_day())
-                
-    
+        print(self.is_next_day())
 
-    @commands.command()
-    async def ping(self, ctx):
-        await ctx.send("Pong!")
+    @commands.command(aliases=['d', 'b', 'askbofday', 'askb'])
+    async def the_day(self, ctx):
+        if self.is_next_day():
+            await ctx.send("New Day!")
 
+            print("This is the time now:", datetime.now())
+            self.db.set_last_status()
+            self.last_status = self.db.get_last_status()
+        else:
+            await ctx.send("Not a New day...")
 
-
-
-    def check_if_next_day(self):
+    def is_next_day(self):
         est = pytz.timezone("US/Eastern")
-        four_am_today = datetime.now(est).replace(hour=4, minute=0, second=0, microsecond=0)
+        effective_time = datetime.now(est) - timedelta(hours=4)
         local_status = est.localize(self.last_status)
-        print(local_status)
-        print(four_am_today)
-        
-        return local_status < four_am_today
-        
 
+        return local_status < effective_time
 
 
 # def get_random_askb():

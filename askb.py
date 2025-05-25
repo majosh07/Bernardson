@@ -4,6 +4,9 @@ import discord
 from discord.ext.commands import Bot
 from gacha import Gacha
 from database import Database
+# import logging
+
+# handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
 load_dotenv()
 TOKEN = os.environ.get('TOKEN')
@@ -27,6 +30,5 @@ class askBernardson(Bot):
 
 
 bot = askBernardson(command_prefix=';;', intents=intents)
+# bot.run(TOKEN, log_handler=handler, root_logger=True)
 bot.run(TOKEN)
-
-

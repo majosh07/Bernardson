@@ -1,7 +1,12 @@
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import psycopg2
+from psycopg2.extras import RealDictCursor
+import pytz
+import logging
+
+
 
 class Database:
     def __init__(self) -> None:
@@ -9,37 +14,109 @@ class Database:
 
 
     def get_last_status(self):
-        cur = self.connection.cursor()
+        with self.connection.cursor() as cur:
 
-        cur.execute("""
-        SELECT last_reset FROM daily_status;
-        """)
-        
-        last_status = cur.fetchone()
-        if last_status is None:
-            raise ValueError("Did not get last status...")
-        return last_status[0]
+            cur.execute("""
+            SELECT last_reset FROM daily_status;
+            """)
+            
+            last_status = cur.fetchone()
+            if last_status is None:
+                raise ValueError("Did not get last status...")
+            return last_status[0]
 
     def set_last_status(self):
-        cur = self.connection.cursor()
+        with self.connection.cursor() as cur:
 
-        cur.execute("""
-        UPDATE daily_status SET last_reset = %s WHERE id = 1;
-        """, (datetime.now(),))
+            cur.execute("""
+            UPDATE daily_status SET last_reset = %s WHERE id = 1;
+            """, (datetime.now(),))
+            self.connection.commit()
 
     def get_num_gifs(self):
-        cur = self.connection.cursor()
+        with self.connection.cursor() as cur:
         
-        cur.execute("""
-        SELECT COUNT(*) FROM user_gifs;
-        """)
-        # add loggin here
+            cur.execute("""
+            SELECT COUNT(*) FROM user_gifs;
+            """)
+            # add loggin here
 
-        num_gifs = cur.fetchone()
-        if num_gifs is None:
-            raise ValueError("Did not get last status...")
-        return num_gifs[0]
+            num_gifs = cur.fetchone()
+            if num_gifs is None:
+                raise ValueError("Did not get last status...")
+            return num_gifs[0]
 
+    def add_daily_gif(self, user):
+        with self.connection.cursor() as cur:
+
+            cur.execute("""
+            INSERT INTO daily_gifs (gif_id, url, author)
+            SELECT gifs.id, gifs.url, %s
+            FROM gifs
+            ORDER BY RANDOM()
+            LIMIT 1
+            RETURNING gif_id, url, author, created_at;
+            """,(user.id))
+
+            latest_gif = cur.fetchone()
+            if latest_gif is None:
+                raise ValueError("Did not get gif")
+            self.connection.commit()
+            return latest_gif
+
+    def get_daily_gif(self, username):
+        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+            SELECT gif_id, author, created_at, url FROM daily_gifs 
+            ORDER BY created_at DESC
+            LIMIT 1;
+            """)
+
+            recent_gif = cur.fetchone()
+            is_new = False
+            if recent_gif is None or self.is_next_day(recent_gif['created_at']):
+                recent_gif = self.add_daily_gif(username)
+                is_new = True
+            
+            return dict(recent_gif), is_new
+
+    def check_add_roll(self, user):
+        with self.connection.cursor() as cur:
+
+            cur.execute("""
+            SELECT last_status FROM users
+            WHERE user_id = %s;
+            """, (user.id,))
+            user_status = cur.fetchone()
+            if user_status is None:
+                raise ValueError("User has no status")
+
+            user_status = user_status[0]
+
+            if self.is_next_day(user_status):
+                cur.execute("""
+                UPDATE users
+                SET roll_count = roll_count + 1;
+                RETURNING roll_count;
+                """)
+
+                roll_count = cur.fetchone()
+                if roll_count is None:
+                    raise ValueError("Roll count: Should not be possible")
+
+                self.connection.commit()
+                return roll_count[0]
+            else:
+                cur.execute("""
+                SELECT roll_count FROM users;
+                """)
+
+                roll_count = cur.fetchone()
+                if roll_count is None:
+                    raise ValueError("Roll count: Should not be possible")
+
+                self.connection.commit()
+                return roll_count[0]
 
 
     def make_connection(self):
@@ -66,6 +143,13 @@ class Database:
         # add logging here
 
         return connection
+
+    def is_next_day(self, last_status):
+        est = pytz.timezone("US/Eastern")
+        effective_time = datetime.now(est) - timedelta(hours=4)
+        local_status = est.localize(last_status)
+
+        return local_status < effective_time
 
     def __del__(self):
       if self.connection:

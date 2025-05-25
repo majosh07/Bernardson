@@ -1,8 +1,8 @@
+from discord import Embed
 from discord.ext import commands
 from database import Database
 import random
 from datetime import datetime, timedelta
-import pytz
 
 
 class Gacha(commands.Cog):
@@ -10,26 +10,52 @@ class Gacha(commands.Cog):
         self.bot = bot
         self.db = db
         self.num_gifs = db.get_num_gifs()
-        self.last_status = db.get_last_status()
-        print(self.is_next_day())
+        # self.last_status = db.get_last_status()
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askb'])
     async def the_day(self, ctx):
-        if self.is_next_day():
-            await ctx.send("New Day!")
+        today_gif, is_new = self.db.get_daily_gif(ctx.author.id)
+        
+        # roll_count = self.db.check_add_roll(ctx.author.id)
+        roll_count = 0
 
-            print("This is the time now:", datetime.now())
-            self.db.set_last_status()
-            self.last_status = self.db.get_last_status()
+        embed = None
+        if is_new:
+            embed = Embed(
+                title="New Daily GIF!",
+                color=0xFF0000,
+                description=f"Example Text(figure out what here)"
+            )
         else:
-            await ctx.send("Not a New day...")
+            embed = Embed(
+                title="Daily GIF",
+                color=0x0000FF,
+                description=f"Example Text(figure out what here)"
+            )
+        if type(today_gif) is not dict:
+            print(type(today_gif))
+            raise ValueError("this should be a Dict")
 
-    def is_next_day(self):
-        est = pytz.timezone("US/Eastern")
-        effective_time = datetime.now(est) - timedelta(hours=4)
-        local_status = est.localize(self.last_status)
+        embed.set_author(name=today_gif['author'])
+        embed.set_image(url="https://c.tenor.com/IX_Y1hpiKQUAAAAd/tenor.gif")
+        print(today_gif['url'])
 
-        return local_status < effective_time
+        self.db.set_last_status()
+
+        await ctx.send(embed=embed)
+
+    @commands.command(aliases=['r', 'roll'])
+    async def the_roll(self, ctx):
+        # pass
+        pass
+        
+
+
+
+# NEED TO HAVE SOMETHING THAT HAS THE NAME OF THE USER(add this to db)
+# AND NEED TO HAVE IT CHANGE based on server name?
+
+
 
 
 # def get_random_askb():

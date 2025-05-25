@@ -2,43 +2,29 @@ from discord import Embed
 from discord.ext import commands
 from database import Database
 import random
-from datetime import datetime, timedelta
 
 
 class Gacha(commands.Cog):
-    def __init__(self, bot, db : Database) -> None:
+    def __init__(self, bot, db : Database, args) -> None:
         self.bot = bot
+        bot.add_check(self.check_add_register_user)
         self.db = db
         self.num_gifs = db.get_num_gifs()
-        # self.last_status = db.get_last_status()
+        self.args = args
+        self.probabilities = {'S': 0.1, 'A': 0.2, 'B': 0.3, 'C': 0.4}
+
+    async def check_add_register_user(self, ctx):
+        user_info = ctx.author
+        self.db.check_add_user(user_info)
+        return True
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askb'])
     async def the_day(self, ctx):
-        today_gif, is_new = self.db.get_daily_gif(ctx.author.id)
+        today_gif, is_new = self.db.get_daily_gif(ctx.author)
         
-        # roll_count = self.db.check_add_roll(ctx.author.id)
-        roll_count = 0
+        roll_count = self.db.check_add_roll(ctx.author, self.args.admin)
 
-        embed = None
-        if is_new:
-            embed = Embed(
-                title="New Daily GIF!",
-                color=0xFF0000,
-                description=f"Example Text(figure out what here)"
-            )
-        else:
-            embed = Embed(
-                title="Daily GIF",
-                color=0x0000FF,
-                description=f"Example Text(figure out what here)"
-            )
-        if type(today_gif) is not dict:
-            print(type(today_gif))
-            raise ValueError("this should be a Dict")
-
-        embed.set_author(name=today_gif['author'])
-        embed.set_image(url="https://c.tenor.com/IX_Y1hpiKQUAAAAd/tenor.gif")
-        print(today_gif['url'])
+        embed = self.make_daily_embed(today_gif, is_new, roll_count)
 
         self.db.set_last_status()
 
@@ -46,8 +32,64 @@ class Gacha(commands.Cog):
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
-        # pass
-        pass
+        tiers = list(self.probabilities.keys())
+        weights = list(self.probabilities.values())
+        chosen_tier = random.choices(tiers, weights=weights, k=1)[0]
+        
+        chosen_gif = self.db.get_rand_gif_with_tier(chosen_tier)
+        user_info = self.db.get_user_info(ctx.author.id)
+
+        embed = self.make_rolled_embed(chosen_gif, user_info)
+
+        await ctx.send(embed=embed)
+
+    def make_daily_embed(self, today_gif, is_new, roll_count):
+        embed = None
+
+        if is_new:
+            embed = Embed(
+                title="New Daily GIF!",
+                color=0xFF0000,
+            )
+        else:
+            embed = Embed(
+                title="Daily GIF",
+                color=0x0000FF,
+            )
+        if type(today_gif) is not dict:
+            print(type(today_gif))
+            raise ValueError("this should be a Dict")
+
+        gif_info = self.db.get_gif_from_gif_id(today_gif['gif_id'])
+        embed.add_field(name="Tier", value=gif_info['tier'])
+        embed.add_field(name="Num Rolls", value=str(roll_count))
+        embed.set_footer(text=f"Chosen by: {today_gif['author']}")
+        embed.set_image(url=today_gif['url'])
+
+        return embed
+
+    def make_rolled_embed(self, gif, user_info):
+        embed = Embed()
+        if gif['tier'] == 'S':
+            embed.color = 0xFFD700
+            embed.title = f"{user_info['username']} just rolled a !!!"
+        elif gif['tier'] == 'A':
+            embed.color = 0x7F00FF
+            embed.title = f"{user_info['username']} just rolled a ..!"
+        elif gif['tier'] == 'B':
+            embed.color = 0x00CC66
+            embed.title = f"{user_info['username']} just rolled a ..."
+        elif gif['tier'] == 'C':
+            embed.color = 0x000099
+            embed.title = f"{user_info['username']} just rolled a ..."
+
+        embed.add_field(name="Tier", value=gif['tier'])
+        embed.add_field(name="Num Rolls Left", value=str(user_info['roll_count']))
+        embed.set_footer(text=f"For {user_info['username']}")
+        embed.set_image(url=gif['url'])
+
+        return embed
+
         
 
 
@@ -58,91 +100,6 @@ class Gacha(commands.Cog):
 
 
 
-# def get_random_askb():
-#     return random.choice(urls)
-#
-#
-#
-# if os.path.getsize('gif_of_day.json') != 0:
-#   with open("gif_of_day.json") as output_file:
-#     text = output_file.read()
-#     gif_dict = jsonpickle.decode(text)
-#     today_askb = list(gif_dict.values())[-1]
-# else:
-#   today_askb = get_random_askb()
-#   current_time = time.gmtime(time.time() - TIME_DIFFERENCE_TO_EST_SECONDS)
-#   gif_dict = {(current_time.tm_mon, current_time.tm_mday, current_time.tm_year): today_askb}
-#   with open("gif_of_day.json", 'w') as output_file:
-#     output_file.write(jsonpickle.encode(gif_dict, indent=1))
-#
-#
-# if os.path.getsize('members.json') != 0:
-#   with open("members.json") as output_file:
-#     text = output_file.read()
-#     members = jsonpickle.decode(text)  
-# else:
-#   members = {}
-#
-#
-# def find_json_time():
-#   if os.path.getsize('time_of_day.json') != 0:
-#     with open('time_of_day.json') as output_file:
-#       text = output_file.read()
-#       json_time = jsonpickle.decode(text)
-#   else:
-#     json_time = time.gmtime(time.time() - TIME_DIFFERENCE_TO_EST_SECONDS)
-#     with open('time_of_day.json', 'w') as output_file:
-#       output_file.write(jsonpickle.encode(json_time, indent=1))
-#   return json_time
-#
-#
-# def askb_of_the_day(author):
-#   global today_askb
-#   current_time = time.gmtime(time.time() - TIME_DIFFERENCE_TO_EST_SECONDS)
-#   print(current_time)
-#   json_time = find_json_time()
-#   if current_time.tm_mday != json_time.tm_mday:
-#     asked = False
-#   else:
-#     asked = True
-#
-#   if not asked:
-#     today_askb = get_random_askb()
-#     with open('time_of_day.json', 'w') as output_file:
-#       output_file.write(jsonpickle.encode(current_time, indent=1))
-#     with open("gif_of_day.json") as output_file:
-#       text = output_file.read()
-#       gif_dict = jsonpickle.decode(text)
-#     with open("gif_of_day.json", "w") as output_file:
-#       gif_dict[(current_time.tm_mon, current_time.tm_mday, current_time.tm_year)] = today_askb
-#       output_file.write(jsonpickle.encode(gif_dict, indent=1))
-#     check_and_add(author)
-#     return today_askb
-#   else:
-#     check_and_add(author)
-#     return today_askb
-#
-#
-#
-#
-#
-#
-# def check_and_add(author):
-#   author_id = str(author.id)
-#   if author_id in members:
-#     members[author_id].add_rolls()
-#     if author.name != members[author_id].name:
-#       members[author_id].name = author.name
-#   else:
-#     members[author_id] = Inventory(author)
-#   with open("members.json", 'w') as output_file:
-#     output_file.write(jsonpickle.encode(members, indent=1))
-#
-#
-# def num_rolls(author):
-#   return members[str(author.id)].rolls
-#
-#
 # def roll(author):
 #   # This will hold:
 #   # the gif, if hit s pity, if hit a pity

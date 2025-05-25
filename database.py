@@ -6,6 +6,8 @@ from psycopg2.extras import RealDictCursor
 import pytz
 import logging
 
+OWNER_ID = 594617002736222219
+
 
 
 class Database:
@@ -47,16 +49,16 @@ class Database:
             return num_gifs[0]
 
     def add_daily_gif(self, user):
-        with self.connection.cursor() as cur:
+        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
 
             cur.execute("""
-            INSERT INTO daily_gifs (gif_id, url, author)
-            SELECT gifs.id, gifs.url, %s
+            INSERT INTO daily_gifs (gif_id, url, user_id, author)
+            SELECT gifs.id, gifs.url, %s, %s
             FROM gifs
             ORDER BY RANDOM()
             LIMIT 1
-            RETURNING gif_id, url, author, created_at;
-            """,(user.id))
+            RETURNING gif_id, url, user_id, author, created_at;
+            """,(user.id, user.name,))
 
             latest_gif = cur.fetchone()
             if latest_gif is None:
@@ -64,10 +66,10 @@ class Database:
             self.connection.commit()
             return latest_gif
 
-    def get_daily_gif(self, username):
+    def get_daily_gif(self, user):
         with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-            SELECT gif_id, author, created_at, url FROM daily_gifs 
+            SELECT gif_id, user_id, author, created_at, url FROM daily_gifs 
             ORDER BY created_at DESC
             LIMIT 1;
             """)
@@ -75,28 +77,20 @@ class Database:
             recent_gif = cur.fetchone()
             is_new = False
             if recent_gif is None or self.is_next_day(recent_gif['created_at']):
-                recent_gif = self.add_daily_gif(username)
+                recent_gif = self.add_daily_gif(user)
                 is_new = True
-            
+
             return dict(recent_gif), is_new
 
-    def check_add_roll(self, user):
+    def check_add_roll(self, user, admin=False):
         with self.connection.cursor() as cur:
 
-            cur.execute("""
-            SELECT last_status FROM users
-            WHERE user_id = %s;
-            """, (user.id,))
-            user_status = cur.fetchone()
-            if user_status is None:
-                raise ValueError("User has no status")
+            user_info = self.get_user_info(user.id)
 
-            user_status = user_status[0]
-
-            if self.is_next_day(user_status):
+            if self.is_next_day_and_admin(user_info, admin):
                 cur.execute("""
                 UPDATE users
-                SET roll_count = roll_count + 1;
+                SET roll_count = roll_count + 1
                 RETURNING roll_count;
                 """)
 
@@ -117,6 +111,59 @@ class Database:
 
                 self.connection.commit()
                 return roll_count[0]
+
+    def get_rand_gif_with_tier(self, tier):
+        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+            SELECT *
+            FROM gifs
+            WHERE tier = %s
+            ORDER BY RANDOM()
+            LIMIT 1
+            """, (tier,))
+
+            gif = cur.fetchone()
+            if gif is None:
+                raise ValueError("There are now gifs")
+            return dict(gif)
+
+    def get_gif_from_gif_id(self, gif_id):
+        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+            
+            cur.execute("""
+            SELECT * FROM gifs
+            WHERE id = %s;
+            """, (gif_id,))
+
+            gif_info = cur.fetchone()
+            if gif_info is None:
+                raise ValueError("Could not find gif")
+            return gif_info
+    
+    def check_add_user(self, user_info):
+        with self.connection.cursor() as cur:
+
+            cur.execute("""
+            INSERT INTO users (user_id, username)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING;
+            """, (user_info.id, user_info.name))
+
+            self.connection.commit()
+
+    def get_user_info(self, user_id):
+        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+
+            cur.execute("""
+            SELECT * FROM users
+            WHERE user_id = %s;
+            """, (user_id,))
+
+            user_info = cur.fetchone()
+            if user_info is None:
+                raise ValueError("User info not found")
+            return user_info
 
 
     def make_connection(self):
@@ -150,6 +197,13 @@ class Database:
         local_status = est.localize(last_status)
 
         return local_status < effective_time
+    
+    def is_next_day_and_admin(self, user_info, admin_flag):
+        if user_info['user_id'] == OWNER_ID and admin_flag:
+            return True
+        return self.is_next_day(user_info['last_status'])
+
+
 
     def __del__(self):
       if self.connection:

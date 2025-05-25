@@ -8,6 +8,12 @@ from database import Database
 
 # handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--admin', action='store_true', help='Enables Unlimited for Admin')
+args = parser.parse_args()
+
+
 load_dotenv()
 TOKEN = os.environ.get('TOKEN')
 if TOKEN is None:
@@ -22,7 +28,7 @@ class askBernardson(Bot):
         super().__init__(**kwargs)
         self.db = Database()
     async def setup_hook(self) -> None:
-        await self.add_cog(Gacha(self, self.db))
+        await self.add_cog(Gacha(self, self.db, args))
 
     async def on_ready(self):
         print(f'{self.user} has connected to Discord.')

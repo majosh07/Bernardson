@@ -1,3 +1,4 @@
+from discord import user
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
@@ -8,7 +9,11 @@ import logging
 
 OWNER_ID = 594617002736222219
 
+# SHOULD add database checks for integrity and stuff  
 
+# ALSO might want to think about a better/cleaner database setup if expanding
+    # Don't want to have a lot of db methods cluttering
+        # could have DB just run a command given and then return
 
 class Database:
     def __init__(self) -> None:
@@ -91,26 +96,49 @@ class Database:
                 cur.execute("""
                 UPDATE users
                 SET roll_count = roll_count + 1
+                WHERE user_id = %s
                 RETURNING roll_count;
-                """)
+                """, (user_info['user_id'],))
 
                 roll_count = cur.fetchone()
                 if roll_count is None:
                     raise ValueError("Roll count: Should not be possible")
+
+                self.set_user_last_status(user_info)
 
                 self.connection.commit()
                 return roll_count[0]
             else:
                 cur.execute("""
-                SELECT roll_count FROM users;
-                """)
+                SELECT roll_count FROM users
+                WHERE user_id = %s;
+                """, (user_info['user_id'],))
 
                 roll_count = cur.fetchone()
                 if roll_count is None:
                     raise ValueError("Roll count: Should not be possible")
 
+                self.set_user_last_status(user_info)
+
                 self.connection.commit()
                 return roll_count[0]
+
+    def subtract_roll(self, user_info):
+        with self.connection.cursor() as cur:
+
+            cur.execute("""
+            UPDATE users
+            SET roll_count = roll_count - 1
+            WHERE user_id = %s
+            RETURNING roll_count;
+            """, (user_info['user_id'],))
+
+            roll_count = cur.fetchone()
+            if roll_count is None:
+                raise ValueError("Roll count: Should not be possible")
+            self.connection.commit()
+
+            return roll_count[0]
 
     def get_rand_gif_with_tier(self, tier):
         with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
@@ -127,6 +155,24 @@ class Database:
             if gif is None:
                 raise ValueError("There are now gifs")
             return dict(gif)
+
+    def reset_pities(self, user_info, tier):
+        with self.connection.cursor() as cur:
+
+            which_counter = None
+            if tier == "S":
+                which_counter = "s_pity"
+            elif tier == "A":
+                which_counter = 'a_pity'
+            else:
+                return
+
+            cur.execute(f"""
+            UPDATE users
+            SET {which_counter} = 0
+            WHERE user_id = %s
+            """, (user_info['user_id'],))
+
 
     def get_gif_from_gif_id(self, gif_id):
         with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
@@ -164,7 +210,18 @@ class Database:
             if user_info is None:
                 raise ValueError("User info not found")
             return user_info
+    
+    def set_user_last_status(self, user_info):
+        with self.connection.cursor() as cur:
 
+            cur.execute("""
+            UPDATE users
+            SET last_status = %s
+            WHERE user_id = %s;
+            """, (datetime.now(), user_info['user_id'],))
+            # Add database check here
+
+            self.connection.commit()
 
     def make_connection(self):
         load_dotenv()

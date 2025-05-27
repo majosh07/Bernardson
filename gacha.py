@@ -1,8 +1,20 @@
+from typing import Optional
 from discord import Embed
 from discord.ext import commands
 from database import Database
 import random
 
+BASE_PROBABILITIES = {'S': 0.05, 'A': 0.15, 'B': 0.35, 'C': 0.45}
+S_HARD_PITY = 25
+S_SOFT_PITY_START = 20
+S_SOFT_PITY_CAP = 0.15
+S_SLOPE = (S_SOFT_PITY_CAP - BASE_PROBABILITIES['S']) / (S_HARD_PITY - 1 - S_SOFT_PITY_START - 1)
+S_INTERCEPT = S_SOFT_PITY_CAP - (S_SLOPE * S_HARD_PITY - 1)
+A_HARD_PITY = 8
+A_SOFT_PITY_START = 5
+A_SOFT_PITY_CAP = 0.30
+A_SLOPE = (A_SOFT_PITY_CAP - BASE_PROBABILITIES['A']) / (A_HARD_PITY - 1 - A_SOFT_PITY_START - 1)
+A_INTERCEPT = A_SOFT_PITY_CAP - (A_SLOPE * A_HARD_PITY - 1)
 
 class Gacha(commands.Cog):
     def __init__(self, bot, db : Database, args) -> None:
@@ -11,14 +23,13 @@ class Gacha(commands.Cog):
         self.db = db
         self.num_gifs = db.get_num_gifs()
         self.args = args
-        self.probabilities = {'S': 0.1, 'A': 0.2, 'B': 0.3, 'C': 0.4}
 
     async def check_add_register_user(self, ctx):
         user_info = ctx.author
         self.db.check_add_user(user_info)
         return True
 
-    @commands.command(aliases=['d', 'b', 'askbofday', 'askb'])
+    @commands.command(aliases=['d', 'b', 'askbofday',])
     async def the_day(self, ctx):
         today_gif, is_new = self.db.get_daily_gif(ctx.author)
         
@@ -32,16 +43,43 @@ class Gacha(commands.Cog):
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
-        tiers = list(self.probabilities.keys())
-        weights = list(self.probabilities.values())
-        chosen_tier = random.choices(tiers, weights=weights, k=1)[0]
+        user_info = self.db.get_user_info(ctx.author.id)
+
+        if user_info['roll_count'] == 0:
+            await ctx.send("You don't have any rolls left ...")
+            return
+
+        user_info['roll_count'] = self.db.subtract_roll(user_info)
+
+        chosen_tier = self.choose_tier(user_info)
         
         chosen_gif = self.db.get_rand_gif_with_tier(chosen_tier)
-        user_info = self.db.get_user_info(ctx.author.id)
+
+        self.db.reset_pities(user_info, chosen_tier)
 
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def askb(self, ctx, *, phrase:Optional[str]=None):
+        answers = [
+            "It is certain.",
+            "Without a doubt.",
+            "Yes, definitely.",
+            "My sources say yes.",
+            "Yes",
+            "Ask again later.",
+            "Cannot tell right now.",
+            "Concentrate and ask again",
+            "My reply is no.",
+            "No.",
+            "My sources say no.",
+        ]
+        if (phrase == "is this true?"):
+            await ctx.send(random.choice(answers))
+        else:
+            await ctx.send("Send the command ';;askb is this true?' exactly.")
 
     def make_daily_embed(self, today_gif, is_new, roll_count):
         embed = None
@@ -89,6 +127,40 @@ class Gacha(commands.Cog):
         embed.set_image(url=gif['url'])
 
         return embed
+
+    def choose_tier(self, user_info):
+        s_pity = user_info['s_pity']
+        a_pity = user_info['a_pity']
+
+        if s_pity >= S_HARD_PITY:
+            return 'S'
+        if a_pity >= A_HARD_PITY:
+            return 'A'
+
+        probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)
+        tiers = list(probabilities.keys())
+        weights = list(probabilities.values())
+
+        return random.choices(tiers, weights=weights, k=1)[0]
+        
+
+    def get_probabilities(self, probabilities, s_pity, a_pity):
+        s_chance = probabilities['S']
+        a_chance = probabilities['A']
+        if s_pity >= S_SOFT_PITY_START:
+            s_chance = S_SLOPE * s_chance + S_INTERCEPT
+        if a_pity >= A_SOFT_PITY_START:
+            a_chance = A_SLOPE * a_chance + S_INTERCEPT
+        rest_of_chance = 1 - (s_chance + a_chance)
+
+        probabilities['S'] = s_chance
+        probabilities['A'] = a_chance
+        total_base = probabilities['B'] + probabilities['C']
+        probabilities['B'] = rest_of_chance * (probabilities['B'] / total_base)
+        probabilities['C'] = rest_of_chance * (probabilities['C'] / total_base)
+
+        return probabilities
+    
 
         
 

@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import pytz
 import urllib.parse as urlparse
 import logging
@@ -54,7 +54,7 @@ class Database:
             return num_gifs[0]
 
     def add_daily_gif(self, user):
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.connection.cursor(row_factory=dict_row) as cur:
 
             cur.execute("""
             INSERT INTO daily_gifs (gif_id, url, user_id, author)
@@ -72,7 +72,7 @@ class Database:
             return latest_gif
 
     def get_daily_gif(self, user):
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.connection.cursor(row_factory=dict_row) as cur:
             cur.execute("""
             SELECT gif_id, user_id, author, created_at, url FROM daily_gifs 
             ORDER BY created_at DESC
@@ -141,7 +141,7 @@ class Database:
             return roll_count[0]
 
     def get_rand_gif_with_tier(self, tier):
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.connection.cursor(row_factory=dict_row) as cur:
 
             cur.execute("""
             SELECT *
@@ -175,7 +175,7 @@ class Database:
 
 
     def get_gif_from_gif_id(self, gif_id):
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.connection.cursor(row_factory=dict_row) as cur:
             
             cur.execute("""
             SELECT * FROM gifs
@@ -199,7 +199,7 @@ class Database:
             self.connection.commit()
 
     def get_user_info(self, user_id):
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.connection.cursor(row_factory=dict_row) as cur:
 
             cur.execute("""
             SELECT * FROM users
@@ -233,13 +233,14 @@ class Database:
             urlparse.uses_netloc.append("postgres")
             url = urlparse.urlparse(db_url)
 
-            connection = psycopg2.connect(
-                dbname=url.path[1:],
-                user=url.password,
-                password=url.password,
-                host=url.hostname,
-                port=url.port,
+            conn_str = (
+                f"dbname={url.path[1:]} "
+                f"user={url.username} "
+                f"password{url.password} "
+                f"host={url.hostname} "
+                f"port={url.port} "
             )
+
 
         else:
             envs = {
@@ -254,16 +255,19 @@ class Database:
             if missing:
                 raise ValueError(f"Connection failed: {', '.join(missing)}")
 
-            connection = psycopg2.connect(
-                dbname=envs['db_name'],
-                user=envs['db_user'],
-                password=envs['db_password'],
-                host=envs['db_host'],
-                port=envs['db_port']
+            conn_str = (
+                f"dbname={envs['db_name']} "
+                f"user={envs['db_user']} "
+                f"password={envs['db_password']} "
+                f"host={envs['db_host']} "
+                f"port={envs['db_port']} "
             )
+
+            print(conn_str)
+
             # add logging here
 
-        return connection
+        return psycopg.connect(conn_str)
 
     def is_next_day(self, last_status):
         est = pytz.timezone("US/Eastern")

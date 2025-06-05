@@ -1,10 +1,10 @@
-from discord import user
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import pytz
+import urllib.parse as urlparse
 import logging
 
 OWNER_ID = 594617002736222219
@@ -17,7 +17,7 @@ OWNER_ID = 594617002736222219
 
 class Database:
     def __init__(self) -> None:
-        self.connection = self.make_connection()    
+        self.connection = self.make_connection()
 
 
     def get_last_status(self):
@@ -225,26 +225,43 @@ class Database:
 
     def make_connection(self):
         load_dotenv()
-        envs = {
-            'db_name' : os.environ.get('DB_NAME'),
-            'db_user' : os.environ.get('DB_USER'),
-            'db_password' : os.environ.get('DB_PASSWORD'),
-            'db_host' : os.environ.get('DB_HOST'),
-            'db_port' : os.environ.get('DB_PORT'),
-        }
 
-        missing = [key for key, val in envs.items() if val is None]
-        if missing:
-            raise ValueError(f"Connection failed: {', '.join(missing)}")
+        db_url = os.environ.get('DATABASE_URL')
 
-        connection = psycopg2.connect(
-            dbname=envs['db_name'],
-            user=envs['db_user'],
-            password=envs['db_password'],
-            host=envs['db_host'],
-            port=envs['db_port']
-        )
-        # add logging here
+        if db_url:
+
+            urlparse.uses_netloc.append("postgres")
+            url = urlparse.urlparse(db_url)
+
+            connection = psycopg2.connect(
+                dbname=url.path[1:],
+                user=url.password,
+                password=url.password,
+                host=url.hostname,
+                port=url.port,
+            )
+
+        else:
+            envs = {
+                'db_name' : os.environ.get('DB_NAME'),
+                'db_user' : os.environ.get('DB_USER'),
+                'db_password' : os.environ.get('DB_PASSWORD'),
+                'db_host' : os.environ.get('DB_HOST'),
+                'db_port' : os.environ.get('DB_PORT'),
+            }
+
+            missing = [key for key, val in envs.items() if val is None]
+            if missing:
+                raise ValueError(f"Connection failed: {', '.join(missing)}")
+
+            connection = psycopg2.connect(
+                dbname=envs['db_name'],
+                user=envs['db_user'],
+                password=envs['db_password'],
+                host=envs['db_host'],
+                port=envs['db_port']
+            )
+            # add logging here
 
         return connection
 

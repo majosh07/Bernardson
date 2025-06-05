@@ -236,7 +236,7 @@ class Database:
             conn_str = (
                 f"dbname={url.path[1:]} "
                 f"user={url.username} "
-                f"password{url.password} "
+                f"password={url.password} "
                 f"host={url.hostname} "
                 f"port={url.port} "
             )

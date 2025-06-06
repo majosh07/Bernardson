@@ -5,6 +5,7 @@ import psycopg
 from psycopg.rows import dict_row
 import pytz
 import urllib.parse as urlparse
+from keep_alive import get_ipv4
 import logging
 
 OWNER_ID = 594617002736222219
@@ -230,17 +231,7 @@ class Database:
 
         if db_url:
 
-            urlparse.uses_netloc.append("postgres")
-            url = urlparse.urlparse(db_url)
-
-            conn_str = (
-                f"dbname={url.path[1:]} "
-                f"user={url.username} "
-                f"password={url.password} "
-                f"host={url.hostname} "
-                f"port={url.port} "
-            )
-
+            connection = psycopg.connect(db_url)
 
         else:
             envs = {
@@ -255,7 +246,7 @@ class Database:
             if missing:
                 raise ValueError(f"Connection failed: {', '.join(missing)}")
 
-            conn_str = (
+            connection = psycopg.connect(
                 f"dbname={envs['db_name']} "
                 f"user={envs['db_user']} "
                 f"password={envs['db_password']} "
@@ -263,11 +254,9 @@ class Database:
                 f"port={envs['db_port']} "
             )
 
-            print(conn_str)
-
             # add logging here
 
-        return psycopg.connect(conn_str)
+        return connection
 
     def is_next_day(self, last_status):
         est = pytz.timezone("US/Eastern")
@@ -281,12 +270,9 @@ class Database:
             return True
         return self.is_next_day(user_info['last_status'])
 
-
-
     def __del__(self):
       if self.connection:
         self.connection.close()
-
 
 
 

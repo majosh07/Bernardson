@@ -13,53 +13,57 @@ class Gacha(commands.Cog):
         self.bot = bot
         bot.add_check(self.check_add_register_user)
         self.db = db
-        self.num_gifs = db.get_num_gifs()
         self.args = args
 
     async def check_add_register_user(self, ctx):
         user_info = ctx.author
-        self.db.check_add_user(user_info)
+        await self.db.check_add_user(user_info)
         return True
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
     async def the_day(self, ctx):
         # add logging that user is doing askbofday
-        today_gif, is_new = self.db.get_daily_gif(ctx.author)
+        today_gif, is_new = await self.db.get_daily_gif(ctx.author)
         
-        roll_count = self.db.check_add_roll(ctx.author, self.args.admin)
+        print(f"{ctx.author.name} adding rolling")
+        roll_count = await self.db.check_add_roll(ctx.author, self.args.admin)
 
-        embed = self.make_daily_embed(today_gif, is_new, roll_count)
+        print(f"{ctx.author.name} making embed")
+        embed = await self.make_daily_embed(today_gif, is_new, roll_count)
 
-        self.db.set_last_status()
+        print(f"{ctx.author.name} setting status")
+        await self.db.set_last_status()
 
+        print(f"{ctx.author.name} sending")
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
-        user_info = self.db.get_user_info(ctx.author.id)
+        user_info = await self.db.get_user_info(ctx.author.id)
 
         if user_info['roll_count'] == 0:
             await ctx.send("You don't have any rolls left ...")
             return
 
-        user_info['roll_count'] = self.db.subtract_roll(user_info)
+        user_info['roll_count'] = await self.db.subtract_roll(user_info)
 
-        user_info['s_pity'], user_info['a_pity'] = self.db.add_pities(user_info)
+        user_info['s_pity'], user_info['a_pity'] = await self.db.add_pities(user_info)
 
         chosen_tier = self.choose_tier(user_info)
         
-        chosen_gif = self.db.get_rand_gif_with_tier(chosen_tier)
+        chosen_gif = await self.db.get_rand_gif_with_tier(chosen_tier)
 
-        self.db.reset_pities(user_info, chosen_tier)
+        await self.db.reset_pities(user_info, chosen_tier)
 
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
-        self.db.add_user_gif(user_info, chosen_gif)
+        await self.db.add_user_gif(user_info, chosen_gif)
 
         await ctx.send(embed=embed)
 
     @commands.command()
     async def askb(self, ctx, *, phrase:Optional[str]=None):
+        print('ASKING B')
         answers = [
             "It is certain.",
             "Without a doubt.",
@@ -82,9 +86,12 @@ class Gacha(commands.Cog):
     async def exit(self, ctx):
         if ctx.author.id == OWNER_ID:
             await ctx.send("Stopping bot...")
-            sys.exit(0)
 
-    def make_daily_embed(self, today_gif, is_new, roll_count):
+            await self.db.close()
+
+            await self.bot.close()
+
+    async def make_daily_embed(self, today_gif, is_new, roll_count):
         embed = None
 
         if is_new:
@@ -101,7 +108,7 @@ class Gacha(commands.Cog):
             print(type(today_gif))
             raise ValueError("this should be a Dict")
 
-        gif_info = self.db.get_gif_from_gif_id(today_gif['gif_id'])
+        gif_info = await self.db.get_gif_from_gif_id(today_gif['gif_id'])
         embed.add_field(name="Tier", value=gif_info['tier'])
         embed.add_field(name="Num Rolls", value=str(roll_count))
         embed.set_footer(text=f"Chosen by: {today_gif['author']}")
@@ -136,8 +143,10 @@ class Gacha(commands.Cog):
         a_pity = user_info['a_pity']
 
         if s_pity >= S_HARD_PITY:
+            print(f"{user_info['name']} hit S hard pity")
             return 'S'
         if a_pity >= A_HARD_PITY:
+            print(f"{user_info['name']} hit A hard pity")
             return 'A'
 
         probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)

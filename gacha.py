@@ -3,6 +3,8 @@ from discord import Embed
 from discord.ext import commands
 from database import Database
 from gacha_probabilities import *
+from database import OWNER_ID
+import sys
 import random
 
 
@@ -19,8 +21,9 @@ class Gacha(commands.Cog):
         self.db.check_add_user(user_info)
         return True
 
-    @commands.command(aliases=['d', 'b', 'askbofday',])
+    @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
     async def the_day(self, ctx):
+        # add logging that user is doing askbofday
         today_gif, is_new = self.db.get_daily_gif(ctx.author)
         
         roll_count = self.db.check_add_roll(ctx.author, self.args.admin)
@@ -49,6 +52,8 @@ class Gacha(commands.Cog):
 
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
+        self.db.add_user_gif(user_info, chosen_gif)
+
         await ctx.send(embed=embed)
 
     @commands.command()
@@ -70,6 +75,12 @@ class Gacha(commands.Cog):
             await ctx.send(random.choice(answers))
         else:
             await ctx.send("Send the command ';;askb is this true?' exactly.")
+
+    @commands.command()
+    async def exit(self, ctx):
+        if ctx.author.id == OWNER_ID:
+            await ctx.send("Stopping bot...")
+            sys.exit(0)
 
     def make_daily_embed(self, today_gif, is_new, roll_count):
         embed = None

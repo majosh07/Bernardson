@@ -224,6 +224,17 @@ class Database:
 
             self.connection.commit()
 
+    def add_user_gif(self, user_info, gif):
+        with self.connection.cursor() as cur:
+            
+            cur.execute("""
+            INSERT INTO user_gifs (user_id, gif_id, obtain_date)
+            VALUES (%s, %s, %s)
+            """,(user_info['user_id'], gif['id'], datetime.now(),))
+
+            self.connection.commit()
+            print(f"{user_info['user_id']} got gif id: {gif['id']}")
+
     def make_connection(self):
         load_dotenv()
 
@@ -232,6 +243,7 @@ class Database:
         if db_url:
 
             connection = psycopg.connect(db_url)
+            print("USING PRODUCTION")
 
         else:
             envs = {
@@ -253,6 +265,7 @@ class Database:
                 f"host={envs['db_host']} "
                 f"port={envs['db_port']} "
             )
+            print("USING LOCAL TEST")
 
             # add logging here
 

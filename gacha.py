@@ -39,6 +39,7 @@ class Gacha(commands.Cog):
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
+        print(f"{ctx.author.name} is rolling")
         user_info = await self.db.get_user_info(ctx.author.id)
 
         if user_info['roll_count'] == 0:
@@ -58,7 +59,7 @@ class Gacha(commands.Cog):
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
         await self.db.add_user_gif(user_info, chosen_gif)
-
+        print(f"sending gif")
         await ctx.send(embed=embed)
 
     @commands.command()
@@ -143,10 +144,10 @@ class Gacha(commands.Cog):
         a_pity = user_info['a_pity']
 
         if s_pity >= S_HARD_PITY:
-            print(f"{user_info['name']} hit S hard pity")
+            print(f"{user_info['username']} hit S hard pity")
             return 'S'
         if a_pity >= A_HARD_PITY:
-            print(f"{user_info['name']} hit A hard pity")
+            print(f"{user_info['username']} hit A hard pity")
             return 'A'
 
         probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)

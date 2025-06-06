@@ -43,8 +43,12 @@ class askBernardson(Bot):
         await self.db.close()
         await self.close()
 
-
-bot = askBernardson(command_prefix=';;', intents=intents)
+load_dotenv()
+db_url = os.environ.get('DATABASE_URL')
+if db_url:
+    bot = askBernardson(command_prefix=';;', intents=intents)
+else:
+    bot = askBernardson(command_prefix='!', intents=intents)
 # bot.run(TOKEN, log_handler=handler, root_logger=True)
 async def main(TOKEN):
     loop = asyncio.get_event_loop()

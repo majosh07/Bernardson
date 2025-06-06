@@ -44,6 +44,8 @@ class Gacha(commands.Cog):
 
         user_info['roll_count'] = self.db.subtract_roll(user_info)
 
+        user_info['s_pity'], user_info['a_pity'] = self.db.add_pities(user_info)
+
         chosen_tier = self.choose_tier(user_info)
         
         chosen_gif = self.db.get_rand_gif_with_tier(chosen_tier)

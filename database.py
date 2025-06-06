@@ -37,7 +37,11 @@ class Database:
         with self.connection.cursor() as cur:
 
             cur.execute("""
-            UPDATE daily_status SET last_reset = %s WHERE id = 1;
+            INSERT INTO daily_status (id, last_reset)
+            VALUES (1, NOW())
+            ON CONFLICT (id)
+            DO UPDATE SET
+            last_reset = NOW();
             """, (datetime.now(),))
             self.connection.commit()
 

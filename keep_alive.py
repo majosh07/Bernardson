@@ -3,6 +3,7 @@ import socket
 from threading import Thread
 from flask import Flask
 import asyncio
+import logging
 
 app = Flask(__name__)
 db = None
@@ -27,6 +28,12 @@ def ping_db():
             return f"DB error: {e}"
 
     return loop.run_until_complete(run_check())
+
+class FilterPingDB(logging.Filter):
+    def filter(self, record):
+        return '/ping-db' not in record.getMessage()
+log = logging.getLogger('werkzeug')
+log.addFilter(FilterPingDB())
 
 def run():
     app.run(host='0.0.0.0', port=8080, debug=False)

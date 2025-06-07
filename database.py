@@ -367,6 +367,8 @@ class Database:
         else:
             threshold = four_am_last
 
+        print("This is the time right now:", now_est)
+        print("This is the threshold:", threshold)
         return now_est >= threshold
     
     def is_next_day_and_admin(self, user_info, admin_flag):

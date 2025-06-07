@@ -358,7 +358,11 @@ class Database:
         est = pytz.timezone("US/Eastern")
         now_est = datetime.now(pytz.utc).astimezone(est)
 
-        last_status = est.localize(last_status)
+        if last_status.tzinfo is None:
+            last_status = est.localize(last_status)
+        else:
+            last_status = last_status.astimezone(est)
+
         last_day = last_status.date()
         four_am_last = est.localize(datetime.combine(last_day, datetime.min.time())) + timedelta(hours=4)
 

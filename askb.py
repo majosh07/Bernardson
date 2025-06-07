@@ -56,8 +56,8 @@ async def main(TOKEN):
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.shutdown()))
 
-    keep_alive()
     await bot.db.open_pool()
+    keep_alive(bot.db)
     await bot.start(TOKEN)
 
 asyncio.run(main(TOKEN))

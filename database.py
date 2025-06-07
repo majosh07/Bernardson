@@ -26,7 +26,7 @@ class Database:
         db_url = os.environ.get('DATABASE_URL')
 
         if db_url:
-            connection = AsyncConnectionPool(conninfo=db_url, kwargs={"autocommit": True}, open=False, max_lifetime=300,)
+            connection = AsyncConnectionPool(conninfo=db_url, max_size=1, open=False, max_lifetime=300,)
 
         else:
             envs = {
@@ -126,9 +126,10 @@ class Database:
 
                 recent_gif = await cur.fetchone()
                 is_new = False
-                if recent_gif is None or self.is_next_day(recent_gif['created_at']):
+                if recent_gif is None or self.is_next_day(await self.get_last_status()):
                     recent_gif = await self.add_daily_gif(user)
                     is_new = True
+                    await self.set_last_status()
                 print(f"{user.name} did daily at: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
                 return dict(recent_gif), is_new
 
@@ -355,10 +356,18 @@ class Database:
 
     def is_next_day(self, last_status):
         est = pytz.timezone("US/Eastern")
-        effective_time = datetime.now(est) - timedelta(hours=4)
-        local_status = est.localize(last_status)
+        now_est = datetime.now(pytz.utc).astimezone(est)
 
-        return local_status < effective_time
+        last_status = est.localize(last_status)
+        last_day = last_status.date()
+        four_am_last = est.localize(datetime.combine(last_day, datetime.min.time())) + timedelta(hours=4)
+
+        if last_status >= four_am_last:
+            threshold = four_am_last + timedelta(days=1)
+        else:
+            threshold = four_am_last
+
+        return now_est >= threshold
     
     def is_next_day_and_admin(self, user_info, admin_flag):
         if user_info['user_id'] == OWNER_ID and admin_flag:

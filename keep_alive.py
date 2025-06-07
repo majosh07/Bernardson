@@ -29,7 +29,7 @@ def ping_db():
     return loop.run_until_complete(run_check())
 
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=8080, debug=False)
 
 def keep_alive(database):
     global db

@@ -26,7 +26,7 @@ class Database:
         db_url = os.environ.get('DATABASE_URL')
 
         if db_url:
-            connection = AsyncConnectionPool(conninfo=db_url, min_size=1, max_size=1, open=False, max_lifetime=300,)
+            connection = AsyncConnectionPool(conninfo=db_url, min_size=1, max_size=2, open=False, max_lifetime=300,)
 
         else:
             envs = {
@@ -125,13 +125,13 @@ class Database:
                 """)
 
                 recent_gif = await cur.fetchone()
-                is_new = False
-                if recent_gif is None or self.is_next_day(await self.get_last_status()):
-                    recent_gif = await self.add_daily_gif(user)
-                    is_new = True
-                    await self.set_last_status()
-                print(f"{user.name} did daily at: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
-                return dict(recent_gif), is_new
+        is_new = False
+        if recent_gif is None or self.is_next_day(await self.get_last_status()):
+            recent_gif = await self.add_daily_gif(user)
+            is_new = True
+            await self.set_last_status()
+        print(f"{user.name} did daily at: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
+        return dict(recent_gif), is_new
 
     async def check_add_roll(self, user, admin=False):
         async with self.pool.connection() as conn:

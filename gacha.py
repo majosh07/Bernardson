@@ -25,16 +25,12 @@ class Gacha(commands.Cog):
         # add logging that user is doing askbofday
         today_gif, is_new = await self.db.get_daily_gif(ctx.author)
         
-        print(f"{ctx.author.name} adding rolling")
         roll_count = await self.db.check_add_roll(ctx.author, self.args.admin)
 
-        print(f"{ctx.author.name} making embed")
         embed = await self.make_daily_embed(today_gif, is_new, roll_count)
 
-        print(f"{ctx.author.name} setting status")
         await self.db.set_last_status()
 
-        print(f"{ctx.author.name} sending")
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['r', 'roll'])

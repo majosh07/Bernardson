@@ -26,7 +26,7 @@ class Database:
         db_url = os.environ.get('DATABASE_URL')
 
         if db_url:
-            connection = AsyncConnectionPool(conninfo=db_url, max_size=1, open=False, max_lifetime=300,)
+            connection = AsyncConnectionPool(conninfo=db_url, min_size=1, max_size=1, open=False, max_lifetime=300,)
 
         else:
             envs = {

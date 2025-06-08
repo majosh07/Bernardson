@@ -310,13 +310,22 @@ class Database:
         async with self.pool.connection() as conn:
             async with conn.cursor() as cur:
             
-                await cur.execute("""
-                INSERT INTO user_gifs (user_id, gif_id, obtain_date)
-                VALUES (%s, %s, %s)
-                """,(user_info['user_id'], gif['id'], datetime.now(),))
+                try:
+                    await cur.execute("""
+                    INSERT INTO user_gifs (user_id, gif_id, obtain_date)
+                    VALUES (%s, %s, %s)
+                    """,(user_info['user_id'], gif['id'], datetime.now(),))
 
-                await conn.commit()
-                print(f"{user_info['user_id']} got gif id: {gif['id']}")
+                    await conn.commit()
+                    print(f"{user_info['username']} got gif id: {gif['id']}")
+                except psycopg.IntegrityError as e:
+                    print("Integrity error:", e)  # e.g. duplicate key, not null violation
+                except psycopg.OperationalError as e:
+                    print("Operational error:", e)  # e.g. connection issues
+                except psycopg.DatabaseError as e:
+                    print("Database error:", e)  # general DB issues
+                except Exception as e:
+                    print("Other error:", e)  # fallback
 
     # async def make_connection(self):
     #     load_dotenv()

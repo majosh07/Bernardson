@@ -1,5 +1,5 @@
 from typing import Optional
-from discord import Embed
+from discord import Embed, Member
 from discord.ext import commands
 from database import Database
 from gacha_probabilities import *
@@ -54,9 +54,28 @@ class Gacha(commands.Cog):
 
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
+        print(f"adding gif to users")
         await self.db.add_user_gif(user_info, chosen_gif)
+
         print(f"sending gif")
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def stats(self, ctx, member: Optional[Member] = None):
+        member = member or ctx.author
+
+        try:
+            user_info = self.db.get_user_info(member.id)
+
+        except ValueError as e:
+            await ctx.send("User is not in the database...")
+            print("Stats ValueError:", e)
+        except Exception as e:
+            await ctx.send("Something went wrong...")
+            print("Stats general error:", e)
+
+
+
 
     @commands.command()
     async def askb(self, ctx, *, phrase:Optional[str]=None):
@@ -66,10 +85,10 @@ class Gacha(commands.Cog):
             "Without a doubt.",
             "Yes, definitely.",
             "My sources say yes.",
-            "Yes",
+            "Yes.",
             "Ask again later.",
             "Cannot tell right now.",
-            "Concentrate and ask again",
+            "Concentrate and ask again.",
             "My reply is no.",
             "No.",
             "My sources say no.",
@@ -134,6 +153,19 @@ class Gacha(commands.Cog):
         embed.set_image(url=gif['url'])
 
         return embed
+    
+    def make_stats_embed(self, user_info):
+        embed = Embed()
+        # num gifs that they have
+            # number S tier
+            # number A tier
+        # rolls left
+        # roll_streak (have to start keeping track of this)
+        # can add gif(put "coming soon")
+        # link to inventory("coming soon")
+
+
+        return embed
 
     def choose_tier(self, user_info):
         s_pity = user_info['s_pity']
@@ -154,29 +186,27 @@ class Gacha(commands.Cog):
         
 
     def get_probabilities(self, probabilities, s_pity, a_pity):
-        s_chance = probabilities['S']
-        a_chance = probabilities['A']
+        probs = probabilities
+        s_chance = probs['S']
+        a_chance = probs['A']
         if s_pity >= S_SOFT_PITY_START:
             s_chance = S_SLOPE * s_chance + S_INTERCEPT
         if a_pity >= A_SOFT_PITY_START:
             a_chance = A_SLOPE * a_chance + S_INTERCEPT
         rest_of_chance = 1 - (s_chance + a_chance)
 
-        probabilities['S'] = s_chance
-        probabilities['A'] = a_chance
-        total_base = probabilities['B'] + probabilities['C']
-        probabilities['B'] = rest_of_chance * (probabilities['B'] / total_base)
-        probabilities['C'] = rest_of_chance * (probabilities['C'] / total_base)
+        probs['S'] = s_chance
+        probs['A'] = a_chance
+        total_base = probs['B'] + probs['C']
+        probs['B'] = rest_of_chance * (probs['B'] / total_base)
+        probs['C'] = rest_of_chance * (probs['C'] / total_base)
 
-        return probabilities
+        return probs
     
 
-        
 
 
 
-# NEED TO HAVE SOMETHING THAT HAS THE NAME OF THE USER(add this to db)
-# AND NEED TO HAVE IT CHANGE based on server name?
 
 
 

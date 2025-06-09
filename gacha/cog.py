@@ -4,7 +4,7 @@ from discord.ext import commands
 from gacha.database import *
 from gacha.gacha_probabilities import *
 import random
-import pytz
+from zoneinfo import ZoneInfo
 from logging_config import logger
 
 
@@ -137,9 +137,8 @@ class Gacha(commands.Cog):
 
         gif_info = await get_gif_from_gif_id(today_gif['gif_id'])
 
-        est = pytz.timezone("US/Eastern")
-        date_time = today_gif['created_at'].astimezone(est) 
-        logger.info(date_time)
+        est = ZoneInfo("US/Eastern")
+        date_time = today_gif['created_at'].astimezone(est)
         date_readable = date_time.strftime('%I:%M %p')
 
         embed.add_field(name="Tier", value=gif_info['tier'])

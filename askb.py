@@ -7,7 +7,7 @@ from keep_alive import keep_alive
 import asyncio
 import signal
 from pool import pool
-# import logging
+from logging_config import logger
 
 # handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
@@ -33,7 +33,7 @@ class askBernardson(Bot):
         await self.add_cog(Gacha(self, args))
 
     async def on_ready(self):
-        print(f'{self.user} has connected to Discord.')
+        logger.info(f'{self.user} has connected to Discord.')
 
     async def on_close(self):
         await self.shutdown()

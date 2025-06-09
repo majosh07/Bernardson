@@ -148,7 +148,8 @@ async def get_last_status():
 
 
 async def set_last_status():
-    print(f"New status: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
+    now_est = datetime.now(pytz.utc).astimezone(pytz.timezone("US/Eastern"))
+    print(f"New status: {now_est.strftime('%m-%d-%Y %I:%M %p')}")
     return await exec_write("""
                 INSERT INTO daily_status (id, last_status)
                 VALUES (1, NOW())

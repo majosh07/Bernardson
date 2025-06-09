@@ -1,85 +1,97 @@
 from typing import Optional
 from discord import Embed, Member
 from discord.ext import commands
-from database import Database
-from gacha_probabilities import *
-from database import OWNER_ID
-import sys
+from gacha.database import *
+from gacha.gacha_probabilities import *
 import random
+from logging_config import logger
 
 
 class Gacha(commands.Cog):
-    def __init__(self, bot, db : Database, args) -> None:
+    def __init__(self, bot, args) -> None:
         self.bot = bot
         bot.add_check(self.check_add_register_user)
-        self.db = db
         self.args = args
 
     async def check_add_register_user(self, ctx):
         user_info = ctx.author
-        await self.db.check_add_user(user_info)
+        await check_add_user(user_info)
         return True
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
     async def the_day(self, ctx):
         # add logging that user is doing askbofday
-        today_gif, is_new = await self.db.get_daily_gif(ctx.author)
+        logger.info(f"{ctx.author.name} is doing daily...")
+        today_gif, is_new = await get_daily_gif(ctx.author)
         
-        roll_count = await self.db.check_add_roll(ctx.author, self.args.admin)
+        roll_count = await check_add_roll(ctx.author, self.args.admin)
 
+        await set_last_status()
+
+        logger.info(f"Today gif: {today_gif}\nRollCount: {roll_count}")
         embed = await self.make_daily_embed(today_gif, is_new, roll_count)
-
-        await self.db.set_last_status()
 
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
-        print(f"{ctx.author.name} is rolling")
-        user_info = await self.db.get_user_info(ctx.author.id)
+        logger.info(f"{ctx.author.name} is rolling")
+        user_info = await get_user_info(ctx.author.id)
 
         if user_info['roll_count'] == 0:
             await ctx.send("You don't have any rolls left ...")
             return
 
-        user_info['roll_count'] = await self.db.subtract_roll(user_info)
+        user_info['roll_count'] = await subtract_roll(user_info)
 
-        user_info['s_pity'], user_info['a_pity'] = await self.db.add_pities(user_info)
+        user_info['s_pity'], user_info['a_pity'] = await add_pities(user_info)
 
         chosen_tier = self.choose_tier(user_info)
         
-        chosen_gif = await self.db.get_rand_gif_with_tier(chosen_tier)
+        chosen_gif = await get_rand_gif_with_tier(chosen_tier)
 
-        await self.db.reset_pities(user_info, chosen_tier)
+        await reset_pities(user_info, chosen_tier)
 
         embed = self.make_rolled_embed(chosen_gif, user_info)
 
-        print(f"adding gif to users")
-        await self.db.add_user_gif(user_info, chosen_gif)
+        await add_user_gif(user_info, chosen_gif)
 
-        print(f"sending gif")
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(aliases=['s',])
     async def stats(self, ctx, member: Optional[Member] = None):
         member = member or ctx.author
 
         try:
-            user_info = self.db.get_user_info(member.id)
+            user_info = await get_user_info(member.id)
+            if not isinstance(user_info, dict):
+                raise ValueError("user_info is not dict")
 
+            logger.info("num_gifs")
+            user_info["num_gifs"] = await get_num_gifs(member)
+            logger.info("num_s")
+            user_info['num_S'] = await get_num_tier_gifs(member, 'S')
+            logger.info("num_a")
+            user_info['num_A'] = await get_num_tier_gifs(member, 'A')
+            user_info['num_B'] = await get_num_tier_gifs(member, 'B')
+            user_info['num_C'] = await get_num_tier_gifs(member, 'C')
+
+            logger.info("pfp")
+            user_info['pfp'] = member.display_avatar.url
+
+            embeds = self.make_stats_embeds(user_info, ctx.author.name)
+
+            await ctx.send(embeds=embeds)
         except ValueError as e:
             await ctx.send("User is not in the database...")
-            print("Stats ValueError:", e)
         except Exception as e:
             await ctx.send("Something went wrong...")
             print("Stats general error:", e)
 
 
-
-
     @commands.command()
     async def askb(self, ctx, *, phrase:Optional[str]=None):
-        print('ASKING B')
+        logger.info('ASKING B')
         answers = [
             "It is certain.",
             "Without a doubt.",
@@ -102,10 +114,8 @@ class Gacha(commands.Cog):
     async def exit(self, ctx):
         if ctx.author.id == OWNER_ID:
             await ctx.send("Stopping bot...")
+            await self.bot.shutdown()
 
-            await self.db.close()
-
-            await self.bot.close()
 
     async def make_daily_embed(self, today_gif, is_new, roll_count):
         embed = None
@@ -124,7 +134,7 @@ class Gacha(commands.Cog):
             print(type(today_gif))
             raise ValueError("this should be a Dict")
 
-        gif_info = await self.db.get_gif_from_gif_id(today_gif['gif_id'])
+        gif_info = await get_gif_from_gif_id(today_gif['gif_id'])
         embed.add_field(name="Tier", value=gif_info['tier'])
         embed.add_field(name="Num Rolls", value=str(roll_count))
         embed.set_footer(text=f"Chosen by: {today_gif['author']}")
@@ -154,28 +164,41 @@ class Gacha(commands.Cog):
 
         return embed
     
-    def make_stats_embed(self, user_info):
-        embed = Embed()
-        # num gifs that they have
-            # number S tier
-            # number A tier
-        # rolls left
-        # roll_streak (have to start keeping track of this)
-        # can add gif(put "coming soon")
-        # link to inventory("coming soon")
+    def make_stats_embeds(self, user_info, author):
+        embed1 = Embed()
+        embed1.title = "Info"
 
+        embed1.add_field(name="Num Rolls", value=user_info['roll_count'], inline=True)
+        embed1.add_field(name="S Pity", value=user_info['s_pity'], inline=True)
+        embed1.add_field(name="A Pity", value=user_info['a_pity'], inline=True)
+        embed1.set_footer(text=f"For {author}")
 
-        return embed
+        embed1.set_image(url=user_info['pfp'])
+
+        embed2 = Embed()
+        embed2.title = "Stats"
+
+        embed2.set_footer(text=f"For {author}")
+
+        embed2.add_field(name="Num Gifs", value=user_info['num_gifs'], inline=True)
+        embed2.add_field(name="S tiers", value=user_info['num_S'], inline=True)
+        embed2.add_field(name="A tiers", value=user_info['num_A'], inline=True)
+        embed2.add_field(name="B tiers", value=user_info['num_B'], inline=True)
+        embed2.add_field(name="C tiers", value=user_info['num_C'], inline=True)
+        embed2.add_field(name="Roll Streak", value="Coming Soon...", inline=True)
+        embed2.add_field(name="Can add gif", value="Coming Soon...", inline=True)
+
+        return [embed1, embed2]
 
     def choose_tier(self, user_info):
         s_pity = user_info['s_pity']
         a_pity = user_info['a_pity']
 
         if s_pity >= S_HARD_PITY:
-            print(f"{user_info['username']} hit S hard pity")
+            logger.info(f"{user_info['username']} hit S hard pity")
             return 'S'
         if a_pity >= A_HARD_PITY:
-            print(f"{user_info['username']} hit A hard pity")
+            logger.info(f"{user_info['username']} hit A hard pity")
             return 'A'
 
         probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)
@@ -202,8 +225,6 @@ class Gacha(commands.Cog):
         probs['C'] = rest_of_chance * (probs['C'] / total_base)
 
         return probs
-    
-
 
 
 

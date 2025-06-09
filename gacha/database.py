@@ -144,16 +144,16 @@ def is_next_day_and_admin(user_info, admin_flag):
 
 
 async def get_last_status():
-    return await fetch_value("SELECT last_reset FROM daily_status;")
+    return await fetch_value("SELECT last_status FROM daily_status;")
 
 
 async def set_last_status():
     print(f"New status: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
     return await exec_write("""
-                INSERT INTO daily_status (id, last_reset)
+                INSERT INTO daily_status (id, last_status)
                 VALUES (1, NOW())
                 ON CONFLICT (id)
-                DO UPDATE SET last_reset = NOW();
+                DO UPDATE SET last_status = NOW();
                 """, commit=True)
 
 

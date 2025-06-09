@@ -139,6 +139,7 @@ class Gacha(commands.Cog):
 
         est = pytz.timezone("US/Eastern")
         date_time = today_gif['created_at'].astimezone(est) 
+        logger.info(date_time)
         date_readable = date_time.strftime('%I:%M %p')
 
         embed.add_field(name="Tier", value=gif_info['tier'])

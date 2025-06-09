@@ -16,6 +16,7 @@ async def fetch_value(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 res = await cur.fetchone()
@@ -44,6 +45,7 @@ async def fetch_count(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 res = await cur.fetchone()
@@ -72,6 +74,7 @@ async def fetch_dict(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 row = await cur.fetchone()
@@ -99,6 +102,7 @@ async def exec_write(query, params=None, commit=True):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 if commit:

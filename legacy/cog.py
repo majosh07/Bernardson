@@ -92,7 +92,7 @@ class Legacy(commands.Cog):
         if not isBold:
             phrase = " ".join(word_list)
         else:
-            phrase = f"**{" ".join(word_list)}**"
+            phrase = f"**{' '.join(word_list)}**"
         
         await ctx.send(
           f"{phrase}. I LOVE {phrase} SO MUCH, PLEASE HELP; I AM ADDICTED TO {phrase}; PLEASE, I NEED HELP; ALL I EVER THINK ABOUT IS {phrase}; ANY TIME I TRY TO DO HOMEWORK, ALL THAT IS IN MY MIND IS {phrase}. Even when I go to sleep, it is just {phrase}. I imagine the {phrase}, with {phrase}, and {phrase}; just thinking about it now makes me need it. OMG, MGMMGNGM, I NEED TO GET ON {phrase} RIGHT NOW. GOD I LOVE {phrase} SO MUCH ❤️"

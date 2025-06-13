@@ -337,18 +337,18 @@ async def get_user_info(user_id):
 async def set_user_last_status(user_info):
     query = """
             UPDATE users
-            SET last_status = %s
+            SET last_status = NOW()
             WHERE user_id = %s;
             """
 
-    await exec_write(query, params=(datetime.now(), user_info['user_id'],))
+    await exec_write(query, params=(user_info['user_id'],))
 
 
 async def add_user_gif(user_info, gif):
     query = """
             INSERT INTO user_gifs (user_id, gif_id, obtain_date)
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s, NOW())
             """
 
-    await exec_write(query, params=(user_info['user_id'], gif['id'], datetime.now(),))
+    await exec_write(query, params=(user_info['user_id'], gif['id'],))
 

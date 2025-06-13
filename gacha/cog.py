@@ -50,13 +50,13 @@ class Gacha(commands.Cog):
 
         user_info['s_pity'], user_info['a_pity'] = await add_pities(user_info)
 
-        chosen_tier = self.choose_tier(user_info)
+        chosen_tier, hit_pity = self.choose_tier(user_info)
         
         chosen_gif = await get_rand_gif_with_tier(chosen_tier)
 
         await reset_pities(user_info, chosen_tier)
 
-        embed = self.make_rolled_embed(chosen_gif, user_info)
+        embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
 
         await add_user_gif(user_info, chosen_gif)
 
@@ -153,7 +153,7 @@ class Gacha(commands.Cog):
 
         return embed
 
-    def make_rolled_embed(self, gif, user_info):
+    def make_rolled_embed(self, gif, user_info, hit_pity):
         embed = Embed()
         if gif['tier'] == 'S':
             embed.color = 0xFFD700
@@ -168,8 +168,11 @@ class Gacha(commands.Cog):
             embed.color = 0x000099
             embed.title = f"{user_info['username']} just rolled a ..."
 
+
         embed.add_field(name="Tier", value=gif['tier'])
         embed.add_field(name="Num Rolls Left", value=str(user_info['roll_count']))
+        if hit_pity:
+            embed.add_field(name="HARD PITY", value="HIT HARD PITY")
         embed.set_footer(text=f"For {user_info['username']}")
         embed.set_image(url=gif['url'])
 
@@ -207,16 +210,16 @@ class Gacha(commands.Cog):
 
         if s_pity >= S_HARD_PITY:
             logger.info(f"{user_info['username']} hit S hard pity")
-            return 'S'
+            return 'S', True
         if a_pity >= A_HARD_PITY:
             logger.info(f"{user_info['username']} hit A hard pity")
-            return 'A'
+            return 'A', True
 
         probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)
         tiers = list(probabilities.keys())
         weights = list(probabilities.values())
 
-        return random.choices(tiers, weights=weights, k=1)[0]
+        return random.choices(tiers, weights=weights, k=1)[0], False
         
 
     def get_probabilities(self, probabilities, s_pity, a_pity):

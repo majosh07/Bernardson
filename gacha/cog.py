@@ -24,13 +24,16 @@ class Gacha(commands.Cog):
         # add logging that user is doing askbofday
         logger.info(f"{ctx.author.name} is doing daily...")
         today_gif, is_new = await get_daily_gif(ctx.author)
-        
+
+        user_info = await get_user_info(ctx.author.id)
+        prev_roll_count = user_info['roll_count']
+
         roll_count = await check_add_roll(ctx.author, self.args.admin)
 
         await set_last_status()
 
         logger.info(f"Today gif: {today_gif}\nRollCount: {roll_count}")
-        embed = await self.make_daily_embed(today_gif, is_new, roll_count)
+        embed = await self.make_daily_embed(today_gif, is_new, roll_count, prev_roll_count)
 
         await ctx.send(embed=embed)
 
@@ -118,7 +121,7 @@ class Gacha(commands.Cog):
             await self.bot.shutdown()
 
 
-    async def make_daily_embed(self, today_gif, is_new, roll_count):
+    async def make_daily_embed(self, today_gif, is_new, roll_count, prev_roll_count):
         embed = None
 
         if is_new:
@@ -141,8 +144,10 @@ class Gacha(commands.Cog):
         date_time = today_gif['created_at'].astimezone(est)
         date_readable = date_time.strftime('%I:%M %p')
 
+        num_rolls = str(roll_count) if prev_roll_count == roll_count else f"({prev_roll_count}) -> **{roll_count}**"
+
         embed.add_field(name="Tier", value=gif_info['tier'])
-        embed.add_field(name="Num Rolls", value=str(roll_count))
+        embed.add_field(name="Num Rolls", value=num_rolls)
         embed.set_footer(text=f"Chosen by: {today_gif['author']} at {date_readable}")
         embed.set_image(url=today_gif['url'])
 

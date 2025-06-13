@@ -24,7 +24,8 @@ if TOKEN is None:
 
 intents = discord.Intents.default()
 intents.message_content= True
-
+intents.reactions = True
+intents.messages = True
 
 class askBernardson(Bot):
     def __init__(self, **kwargs):

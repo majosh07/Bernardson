@@ -84,14 +84,15 @@ class Legacy(commands.Cog):
     async def oh_my_goodness_gracious(self, ctx, *, phrase_and_flags):
         word_list = shlex.split(phrase_and_flags)
         isBold = False
-        for word in word_list:
+        for idx, word in enumerate(word_list):
             if word == "-bold":
                 isBold = True
+                word_list.pop(idx)
 
         if not isBold:
-            phrase = word_list[0]
+            phrase = " ".join(word_list)
         else:
-            phrase = f"**{word_list[0]}**"
+            phrase = f"**{" ".join(word_list)}**"
         
         await ctx.send(
           f"{phrase}. I LOVE {phrase} SO MUCH, PLEASE HELP; I AM ADDICTED TO {phrase}; PLEASE, I NEED HELP; ALL I EVER THINK ABOUT IS {phrase}; ANY TIME I TRY TO DO HOMEWORK, ALL THAT IS IN MY MIND IS {phrase}. Even when I go to sleep, it is just {phrase}. I imagine the {phrase}, with {phrase}, and {phrase}; just thinking about it now makes me need it. OMG, MGMMGNGM, I NEED TO GET ON {phrase} RIGHT NOW. GOD I LOVE {phrase} SO MUCH ❤️"

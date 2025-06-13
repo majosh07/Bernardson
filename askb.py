@@ -3,6 +3,7 @@ import os
 import discord
 from discord.ext.commands import Bot
 from gacha.cog import Gacha
+from legacy.cog import Legacy
 from keep_alive import keep_alive
 import asyncio
 import signal
@@ -32,6 +33,7 @@ class askBernardson(Bot):
         super().__init__(**kwargs)
     async def setup_hook(self) -> None:
         await self.add_cog(Gacha(self, args))
+        await self.add_cog(Legacy(self, args))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')

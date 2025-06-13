@@ -1,5 +1,8 @@
 from discord.ext import commands
 import discord.utils
+import shlex
+import random
+from logging_config import logger
 
 
 class Legacy(commands.Cog):
@@ -21,12 +24,16 @@ class Legacy(commands.Cog):
         )
 
 
+    # make 1% chance of sending anime boys kissing
     @commands.command(aliases=['bl', 'bobble'])
     async def Bobble_League(self, ctx):
         role = discord.utils.get(ctx.guild.roles, name="Bubble")
         message = "BOBBLE LEAGUE. I LOVE BOBBLE LEAGUE SO MUCH, PLEASE HELP; I AM ADDICTED TO BOBBLE LEAGUE; PLEASE, I NEED HELP; ALL I EVER THINK ABOUT IS BOBBLE LEAGUE; ANY TIME I TRY TO DO HOMEWORK, ALL THAT IS IN MY MIND IS BOBBLE LEAGUE. Even when I go to sleep, it is just BOBBLE LEAGUE. I imagine the strategies, bounces, and plays; just thinking about it now makes me want to play it. OMG, MGMMGNGM, I NEED TO GET ON BOBBLE LEAGUE RIGHT NOW. GOD I LOVE BOBBLE LEAGUE SO MUCH ❤️"
 
-        if role:
+        number = random.randint(1, 100)
+        if ctx.invoked_with == 'bl' and number <= 25:
+            await ctx.send("https://c.tenor.com/sbTAxMWOccMAAAAd/tenor.gif")
+        elif role:
             await ctx.send(message + role.mention)
         else:
             await ctx.send(message)
@@ -74,8 +81,39 @@ class Legacy(commands.Cog):
 
 
     @commands.command(aliases=['omgg', 'OMGG'])
-    async def oh_my_goodness_gracious(self, ctx, *, phrase):
+    async def oh_my_goodness_gracious(self, ctx, *, phrase_and_flags):
+        word_list = shlex.split(phrase_and_flags)
+        isBold = False
+        for word in word_list:
+            if word == "-bold":
+                isBold = True
+
+        if not isBold:
+            phrase = word_list[0]
+        else:
+            phrase = f"**{word_list[0]}**"
+        
         await ctx.send(
-          f"**{phrase}**. I LOVE **{phrase}** SO MUCH, PLEASE HELP; I AM ADDICTED TO **{phrase}**; PLEASE, I NEED HELP; ALL I EVER THINK ABOUT IS **{phrase}**; ANY TIME I TRY TO DO HOMEWORK, ALL THAT IS IN MY MIND IS **{phrase}**. Even when I go to sleep, it is just **{phrase}**. I imagine the **{phrase}**, with **{phrase}**, and **{phrase}**; just thinking about it now makes me need it. OMG, MGMMGNGM, I NEED TO GET ON **{phrase}** RIGHT NOW. GOD I LOVE **{phrase}** SO MUCH ❤️"
+          f"{phrase}. I LOVE {phrase} SO MUCH, PLEASE HELP; I AM ADDICTED TO {phrase}; PLEASE, I NEED HELP; ALL I EVER THINK ABOUT IS {phrase}; ANY TIME I TRY TO DO HOMEWORK, ALL THAT IS IN MY MIND IS {phrase}. Even when I go to sleep, it is just {phrase}. I imagine the {phrase}, with {phrase}, and {phrase}; just thinking about it now makes me need it. OMG, MGMMGNGM, I NEED TO GET ON {phrase} RIGHT NOW. GOD I LOVE {phrase} SO MUCH ❤️"
         )
+
+    @commands.command(aliases=['jw', 'JW'])
+    async def just_a_week_away(self, ctx, *, phrase=None):
+        number = 100
+        if phrase is None:
+            number = random.randint(1, 100)
+
+        if number <= 25:
+            message = """
+            Why do you keep\nscreenshotting the shit I put on\nthe GV story :sob: :skull: idgaf jw\n                                                        Why not\nIdgaf I'm jw lmao if you \nclownin and shit idgaf legit jw\n\nWe gon elaborat or what :rofl:\n                                                    Dw about it\nBet :sob: :skull:
+            """
+            await ctx.send(message)
+        elif phrase is None:
+            await ctx.send("Usage ;;[jw, JW, just_a_week_away] (some phrase). OR keep doing ;;jw by itself")
+        else:
+            message = f"""Can you 👉🏻believe it guys🧐? {phrase}. Just a week away.‼️‼️‼️{phrase} is in a week! ‼️✨‼️✨Woohoo!😃 I 👁 am so happy 😁😁😁about this informationℹ️. {phrase} is just a week away, oh wow. 😱😱😱Can you believe it🧐🤔❓❓❓, {phrase} , just in a week. It got here so fast🏃🏼‍♂️💨💨💨. {phrase}"""
+
+            await ctx.send(message)
+
+
 

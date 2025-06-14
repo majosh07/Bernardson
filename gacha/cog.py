@@ -7,15 +7,17 @@ import random
 from zoneinfo import ZoneInfo
 from logging_config import logger
 
+GACHA_CHANNEL_ID = 1129160056387153990
 
 class Gacha(commands.Cog):
     def __init__(self, bot, args) -> None:
         self.bot = bot
-        bot.add_check(self.check_add_register_user)
         self.args = args
 
-    async def check_add_register_user(self, ctx):
+    async def cog_check(self, ctx): # pyright: ignore
         user_info = ctx.author
+        if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID:
+            return False
         await check_add_user(user_info)
         return True
 

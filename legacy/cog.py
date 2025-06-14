@@ -106,7 +106,7 @@ class Legacy(commands.Cog):
 
         if number <= 25:
             message = """
-            Why do you keep\nscreenshotting the shit I put on\nthe GV story :sob: :skull: idgaf jw\n                                                        Why not\nIdgaf I'm jw lmao if you \nclownin and shit idgaf legit jw\n\nWe gon elaborat or what :rofl:\n                                                    Dw about it\nBet :sob: :skull:
+            Why do you keep\nscreenshotting the shit I put on\nthe GV story :sob: :skull: idgaf jw\n                                                        Why not\nIdgaf I'm jw lmao if you \nclownin and shit idgaf legit jw\n\nWe gon elaborate or what :rofl:\n                                                    Dw about it\nBet :sob: :skull:
             """
             await ctx.send(message)
         elif phrase is None:

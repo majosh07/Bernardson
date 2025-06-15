@@ -59,11 +59,11 @@ class askBernardson(Bot):
         await pool.close()
         await self.close()
 
-@commands.command(name='shutdown')
-async def shutdown(self, ctx):
+@commands.command(aliases=["sh"])
+async def shutdown(ctx):
     if ctx.author.id == OWNER_ID:
         await ctx.send("Stopping bot...")
-        await self.shutdown()
+        await ctx.bot.shutdown()
 
 load_dotenv()
 db_url = os.environ.get('DATABASE_URL')

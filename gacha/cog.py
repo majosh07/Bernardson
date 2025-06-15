@@ -4,7 +4,9 @@ from discord.ext import commands
 from gacha.database import *
 from gacha.gacha_probabilities import *
 import random
+from datetime import datetime
 from zoneinfo import ZoneInfo
+from dateutil.relativedelta import relativedelta
 from logging_config import logger
 
 GACHA_CHANNEL_ID = 1129160056387153990
@@ -14,12 +16,23 @@ class Gacha(commands.Cog):
         self.bot = bot
         self.args = args
 
+    @commands.Cog.listener()
+    async def on_ready(self):
+        from gacha.help import help_texts
+        for name, data in help_texts.items():
+            command = self.bot.get_command(name)
+            if command:
+                command.help = data["help"]
+                command.brief = data["brief"]
+                command.usage = data["usage"]
+
     async def cog_check(self, ctx): # pyright: ignore
         user_info = ctx.author
         if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID:
             return False
         await check_add_user(user_info)
         return True
+
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
     async def the_day(self, ctx):
@@ -30,12 +43,22 @@ class Gacha(commands.Cog):
         user_info = await get_user_info(ctx.author.id)
         prev_roll_count = user_info['roll_count']
 
-        roll_count = await check_add_roll(ctx.author, self.args.admin)
+        daily_streak, was_bonus = await check_add_daily_streak(ctx.author, self.args.admin_streak)
+
+        roll_count = await check_add_roll(ctx.author, was_bonus, self.args.admin_daily)
 
         await set_last_status()
 
-        logger.info(f"Today gif: {today_gif}\nRollCount: {roll_count}")
-        embed = await self.make_daily_embed(today_gif, is_new, roll_count, prev_roll_count)
+        logger.info(f"{ctx.author.name}'s RollCount: {roll_count}")
+        info = (
+            today_gif,
+            is_new,
+            roll_count,
+            prev_roll_count,
+            daily_streak,
+            was_bonus,
+        )
+        embed = await self.make_daily_embed(*info)
 
         await ctx.send(embed=embed)
 
@@ -58,9 +81,9 @@ class Gacha(commands.Cog):
 
         await reset_pities(user_info, chosen_tier)
 
-        embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
-
         await add_user_gif(user_info, chosen_gif)
+
+        embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
 
         await ctx.send(embed=embed)
 
@@ -73,16 +96,12 @@ class Gacha(commands.Cog):
             if not isinstance(user_info, dict):
                 raise ValueError("user_info is not dict")
 
-            logger.info("num_gifs")
             user_info["num_gifs"] = await get_num_gifs(member)
-            logger.info("num_s")
             user_info['num_S'] = await get_num_tier_gifs(member, 'S')
-            logger.info("num_a")
             user_info['num_A'] = await get_num_tier_gifs(member, 'A')
             user_info['num_B'] = await get_num_tier_gifs(member, 'B')
             user_info['num_C'] = await get_num_tier_gifs(member, 'C')
 
-            logger.info("pfp")
             user_info['pfp'] = member.display_avatar.url
 
             embeds = self.make_stats_embeds(user_info, ctx.author.name)
@@ -96,34 +115,13 @@ class Gacha(commands.Cog):
 
 
     @commands.command()
-    async def askb(self, ctx, *, phrase:Optional[str]=None):
-        logger.info('ASKING B')
-        answers = [
-            "It is certain.",
-            "Without a doubt.",
-            "Yes, definitely.",
-            "My sources say yes.",
-            "Yes.",
-            "Ask again later.",
-            "Cannot tell right now.",
-            "Concentrate and ask again.",
-            "My reply is no.",
-            "No.",
-            "My sources say no.",
-        ]
-        if (phrase == "is this true?"):
-            await ctx.send(random.choice(answers))
-        else:
-            await ctx.send("Send the command ';;askb is this true?' exactly.")
-
-    @commands.command()
     async def exit(self, ctx):
         if ctx.author.id == OWNER_ID:
             await ctx.send("Stopping bot...")
             await self.bot.shutdown()
 
 
-    async def make_daily_embed(self, today_gif, is_new, roll_count, prev_roll_count):
+    async def make_daily_embed(self, today_gif, is_new, roll_count, prev_roll_count, daily_streak, was_bonus):
         embed = None
 
         if is_new:
@@ -149,7 +147,12 @@ class Gacha(commands.Cog):
         num_rolls = str(roll_count) if prev_roll_count == roll_count else f"({prev_roll_count}) -> **{roll_count}**"
 
         embed.add_field(name="Tier", value=gif_info['tier'])
-        embed.add_field(name="Num Rolls", value=num_rolls)
+        if was_bonus:
+            embed.add_field(name="Daily Streak!!!", value=daily_streak)
+            embed.add_field(name="Num Rolls", value=f"{num_rolls}!!!")
+        else:
+            embed.add_field(name="Daily Streak", value=str(daily_streak))
+            embed.add_field(name="Num Rolls", value=num_rolls)
         embed.set_footer(text=f"Chosen by: {today_gif['author']} at {date_readable}")
         embed.set_image(url=today_gif['url'])
 
@@ -172,6 +175,7 @@ class Gacha(commands.Cog):
 
 
         embed.add_field(name="Tier", value=gif['tier'])
+        embed.add_field(name="GIF ID", value=gif['id'])
         embed.add_field(name="Num Rolls Left", value=str(user_info['roll_count']))
         if hit_pity:
             embed.add_field(name="HARD PITY", value="HIT HARD PITY")
@@ -181,12 +185,22 @@ class Gacha(commands.Cog):
         return embed
     
     def make_stats_embeds(self, user_info, author):
+        est = ZoneInfo("US/Eastern")
+        date_time = user_info['created_at'].astimezone(est)
+        date_readable = date_time.strftime('%B %-d, %Y')
+
+        now = datetime.now(est)
+        age = relativedelta(now, date_time)
+
         embed1 = Embed()
         embed1.title = "Info"
 
         embed1.add_field(name="Num Rolls", value=user_info['roll_count'], inline=True)
+        embed1.add_field(name="Daily Streak", value=user_info['daily_streak'], inline=True)
+        embed1.add_field(name="URL", value="Coming soon...", inline=True)
         embed1.add_field(name="S Pity", value=user_info['s_pity'], inline=True)
         embed1.add_field(name="A Pity", value=user_info['a_pity'], inline=True)
+        embed1.add_field(name="Created Account", value=f"{date_readable}\n({age.days} days old)", inline=True)
         embed1.set_footer(text=f"For {author}")
 
         embed1.set_image(url=user_info['pfp'])
@@ -201,7 +215,6 @@ class Gacha(commands.Cog):
         embed2.add_field(name="A tiers", value=user_info['num_A'], inline=True)
         embed2.add_field(name="B tiers", value=user_info['num_B'], inline=True)
         embed2.add_field(name="C tiers", value=user_info['num_C'], inline=True)
-        embed2.add_field(name="Roll Streak", value="Coming Soon...", inline=True)
         embed2.add_field(name="Can add gif", value="Coming Soon...", inline=True)
 
         return [embed1, embed2]
@@ -222,7 +235,6 @@ class Gacha(commands.Cog):
         weights = list(probabilities.values())
 
         return random.choices(tiers, weights=weights, k=1)[0], False
-        
 
     def get_probabilities(self, probabilities, s_pity, a_pity):
         probs = probabilities
@@ -241,9 +253,6 @@ class Gacha(commands.Cog):
         probs['C'] = rest_of_chance * (probs['C'] / total_base)
 
         return probs
-
-
-
 
 
 

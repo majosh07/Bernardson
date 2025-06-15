@@ -1,3 +1,4 @@
+from typing import Optional
 from discord.ext import commands
 import discord.utils
 import shlex
@@ -5,10 +6,31 @@ import random
 from logging_config import logger
 
 
-class Legacy(commands.Cog):
+class Jokebox(commands.Cog):
     def __init__(self, bot, args) -> None:
         self.bot = bot
         self.args = args
+
+    @commands.command()
+    async def askb(self, ctx, *, phrase:Optional[str]=None):
+        logger.info('ASKING B')
+        answers = [
+            "It is certain.",
+            "Without a doubt.",
+            "Yes, definitely.",
+            "My sources say yes.",
+            "Yes.",
+            "Ask again later.",
+            "Cannot tell right now.",
+            "Concentrate and ask again.",
+            "My reply is no.",
+            "No.",
+            "My sources say no.",
+        ]
+        if (phrase == "is this true?"):
+            await ctx.send(random.choice(answers))
+        else:
+            await ctx.send("Send the command ';;askb is this true?' exactly.")
 
     @commands.command(aliases=['au', 'mogus', 'amogus', 'peensus', 'sus'])
     async def among_us(self, ctx):

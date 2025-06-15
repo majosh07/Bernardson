@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from discord.ext.commands import param
 import psycopg 
+from psycopg.abc import Query
 from psycopg.rows import dict_row
 import pytz
 from logging_config import logger
@@ -117,8 +118,7 @@ async def exec_write(query, params=None, commit=True):
             except Exception:
                 logger.exception("Other error:")  # fallback
 
-
-def is_next_day(last_status):
+def get_now_and_threshold_est(last_status):
     est = pytz.timezone("US/Eastern")
     now_est = datetime.now(pytz.utc).astimezone(est)
 
@@ -135,12 +135,28 @@ def is_next_day(last_status):
     else:
         threshold = four_am_last
 
+    return now_est, threshold
+
+def has_day_passed(last_status):
+    now_est, threshold = get_now_and_threshold_est(last_status)
+
     return now_est >= threshold
 
-def is_next_day_and_admin(user_info, admin_flag):
+def has_day_passed_admin(user_info, admin_flag):
     if user_info['user_id'] == OWNER_ID and admin_flag:
         return True
-    return is_next_day(user_info['last_status'])
+    return has_day_passed(user_info['last_status'])
+
+def is_next_day(last_status):
+    now_est, threshold = get_now_and_threshold_est(last_status)
+    cap = threshold + timedelta(days=1)
+
+    return now_est >= threshold and now_est <= cap
+
+def is_today(last_status):
+    now_est, threshold = get_now_and_threshold_est(last_status)
+    return now_est < threshold
+
 
 
 async def get_last_status():
@@ -195,7 +211,7 @@ async def get_daily_gif(user):
     recent_gif = await fetch_dict(query,)
     is_new = False
 
-    if recent_gif is None or is_next_day(await get_last_status()):
+    if recent_gif is None or has_day_passed(await get_last_status()):
         recent_gif = await add_daily_gif(user)
         is_new = True
         await set_last_status()
@@ -207,18 +223,22 @@ async def get_daily_gif(user):
     return dict(recent_gif), is_new
 
 
-async def check_add_roll(user, admin=False):
+async def check_add_roll(user, was_bonus, admin_daily=False):
     user_info = await get_user_info(user.id)
 
-    if is_next_day_and_admin(user_info, admin):
+    if has_day_passed_admin(user_info, admin_daily):
+
+        increase = 1
+        if was_bonus:
+            increase = 2
 
         query = """
         UPDATE users
-        SET roll_count = roll_count + 1
+        SET roll_count = roll_count + %s
         WHERE user_id = %s
         RETURNING roll_count;
         """
-        roll_count = await fetch_value(query, params=(user_info['user_id'],), commit=True)
+        roll_count = await fetch_value(query, params=(increase, user_info['user_id'],), commit=True)
 
         await set_user_last_status(user_info)
 
@@ -238,6 +258,55 @@ async def check_add_roll(user, admin=False):
         await set_user_last_status(user_info)
 
         return roll_count
+
+# relies on check_add_roll setting user_last_status after this is run
+async def check_add_daily_streak(user, admin_streak=False):
+    user_info = await get_user_info(user.id)
+
+    if is_next_day(user_info['last_status']) or admin_streak:
+        # num days in a week
+        query = """
+        UPDATE users
+        SET daily_streak = daily_streak + 1
+        WHERE user_id = %s
+        RETURNING daily_streak, 
+        CASE WHEN daily_streak %% 7 = 0 THEN true ELSE false END AS was_bonus;
+        """
+
+        values = await fetch_dict(query, params=(user_info['user_id'],), commit=True)
+        if values is None:
+            logger.error("didn't get values")
+            raise ValueError("didn't get values")
+
+        return values['daily_streak'], values['was_bonus']
+    elif is_today(user_info['last_status']):
+        query = """
+        SELECT daily_streak
+        FROM users
+        WHERE user_id = %s;
+        """
+
+        daily_streak = await fetch_value(query, params=(user_info['user_id'],))
+        if daily_streak is None:
+            logger.error("didn't get daily streak")
+            raise ValueError("didn't get daily streak")
+        return daily_streak, False
+
+    else:
+        query = """
+        UPDATE users
+        SET daily_streak = 0
+        WHERE user_id = %s
+        RETURNING daily_streak;
+        """
+
+        daily_streak = await fetch_value(query, params=(user_info['user_id'],), commit=True)
+        if daily_streak is None:
+            logger.error("didn't get daily streak")
+            raise ValueError("didn't get daily streak")
+
+        return daily_streak, False
+
 
 async def subtract_roll(user_info):
     query = """

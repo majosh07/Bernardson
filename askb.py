@@ -3,7 +3,8 @@ import os
 import discord
 from discord.ext.commands import Bot
 from gacha.cog import Gacha
-from legacy.cog import Legacy
+from jokebox.cog import Jokebox
+from notifs.cog import Notifs
 from keep_alive import keep_alive
 import asyncio
 import signal
@@ -14,8 +15,18 @@ from logging_config import logger
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--admin', action='store_true', help='Enables Unlimited for Admin')
+parser.add_argument('--admin-daily', dest='admin_daily', action='store_true', help='Enable daily admin mode')
+parser.add_argument('--admin-streak', dest='admin_streak', action='store_true', help='Enable streak admin mode')
+parser.add_argument('--admin', action='store_true', help='Enable all admin features')
+
 args = parser.parse_args()
+
+# Handle --admin manually
+if args.admin:
+    args.admin_daily = True
+    args.admin_streak = True
+if args.admin_daily: logger.info("ADMIN DAILY IS TRUE")
+if args.admin_streak: logger.info("ADMIN STREAK IS TRUE")
 
 
 load_dotenv()
@@ -33,7 +44,8 @@ class askBernardson(Bot):
         super().__init__(**kwargs)
     async def setup_hook(self) -> None:
         await self.add_cog(Gacha(self, args))
-        await self.add_cog(Legacy(self, args))
+        await self.add_cog(Jokebox(self, args))
+        await self.add_cog(Notifs(self, args))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')

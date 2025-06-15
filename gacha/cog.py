@@ -16,15 +16,15 @@ class Gacha(commands.Cog):
         self.bot = bot
         self.args = args
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        from gacha.help import help_texts
-        for name, data in help_texts.items():
-            command = self.bot.get_command(name)
-            if command:
-                command.help = data["help"]
-                command.brief = data["brief"]
-                command.usage = data["usage"]
+    # @commands.Cog.listener()
+    # async def on_ready(self):
+    #     from gacha.help import help_texts
+    #     for name, data in help_texts.items():
+    #         command = self.bot.get_command(name)
+    #         if command:
+    #             command.help = data["help"]
+    #             command.brief = data["brief"]
+    #             command.usage = data["usage"]
 
     async def cog_check(self, ctx): # pyright: ignore
         user_info = ctx.author

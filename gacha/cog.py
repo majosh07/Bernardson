@@ -114,11 +114,6 @@ class Gacha(commands.Cog):
             print("Stats general error:", e)
 
 
-    @commands.command()
-    async def exit(self, ctx):
-        if ctx.author.id == OWNER_ID:
-            await ctx.send("Stopping bot...")
-            await self.bot.shutdown()
 
 
     async def make_daily_embed(self, today_gif, is_new, roll_count, prev_roll_count, daily_streak, was_bonus):

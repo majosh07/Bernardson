@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 import discord
+from discord.ext import commands
 from discord.ext.commands import Bot
 from gacha.cog import Gacha
 from jokebox.cog import Jokebox
@@ -10,6 +11,7 @@ import asyncio
 import signal
 from pool import pool
 from logging_config import logger
+from gacha.database import OWNER_ID
 
 # handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
@@ -57,12 +59,19 @@ class askBernardson(Bot):
         await pool.close()
         await self.close()
 
+@commands.command(name='shutdown')
+async def shutdown(self, ctx):
+    if ctx.author.id == OWNER_ID:
+        await ctx.send("Stopping bot...")
+        await self.shutdown()
+
 load_dotenv()
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     bot = askBernardson(command_prefix=';;', intents=intents)
 else:
     bot = askBernardson(command_prefix='!', intents=intents)
+bot.add_command(shutdown)
 # bot.run(TOKEN, log_handler=handler, root_logger=True)
 async def main(TOKEN):
     loop = asyncio.get_event_loop()
@@ -73,6 +82,7 @@ async def main(TOKEN):
     await pool.open()
     keep_alive()
     await bot.start(TOKEN)
+
 
 asyncio.run(main(TOKEN))
 

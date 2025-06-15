@@ -14,11 +14,11 @@ help_texts = {
         "brief": "Information such as number of gifs and pity counters",
         "usage": ";;[s|stats]",
     },
-    "exit": {
-        "help": "ADMIN ONLY",
-        "brief": "Shuts down the bot",
-        "usage": "nope",
-    },
+    # "exit": {
+    #     "help": "ADMIN ONLY",
+    #     "brief": "Shuts down the bot",
+    #     "usage": "nope",
+    # },
 }
 
 

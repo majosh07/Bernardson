@@ -17,6 +17,7 @@ async def fetch_value(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 res = await cur.fetchone()
@@ -45,6 +46,7 @@ async def fetch_count(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 res = await cur.fetchone()
@@ -73,6 +75,7 @@ async def fetch_dict(query, params=None, commit=False):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 row = await cur.fetchone()
@@ -100,7 +103,7 @@ async def exec_write(query, params=None, commit=True):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             try:
-                await cur.execute("SET TIME ZONE 'US/Eastern';")
+                await cur.execute("SET TIME ZONE 'US/EASTERN';")
                 await cur.execute(query, params)
 
                 if commit:
@@ -157,14 +160,13 @@ def is_today(last_status):
 
 
 async def get_last_status():
-    return await fetch_value("SET TIME ZONE 'US/Eastern'; SELECT last_status FROM daily_status;")
+    return await fetch_value("SELECT last_status FROM daily_status;")
 
 
 async def set_last_status():
     now_est = datetime.now(pytz.utc).astimezone(pytz.timezone("US/Eastern"))
     print(f"New status: {now_est.strftime('%m-%d-%Y %I:%M %p')}")
     return await exec_write("""
-                SET TIME ZONE 'US/Eastern';
                 INSERT INTO daily_status (id, last_status)
                 VALUES (1, NOW())
                 ON CONFLICT (id)
@@ -174,7 +176,7 @@ async def set_last_status():
 
 async def get_num_gifs(user):
     query = """
-            SELECT SUM(amount) FROM user_gifs
+            SELECT COUNT(*) FROM user_gifs
             WHERE user_id = %s;
             """
 
@@ -185,7 +187,7 @@ async def get_num_gifs(user):
 
 async def get_num_tier_gifs(user, tier):
     query = """
-            SELECT SUM(amount) 
+            SELECT COUNT(*)
             FROM user_gifs
             INNER JOIN gifs ON user_gifs.gif_id = gifs.id
             WHERE user_gifs.user_id = %s AND gifs.tier = %s;
@@ -198,7 +200,6 @@ async def get_num_tier_gifs(user, tier):
 async def add_daily_gif(user):
     print(f"New daily_gif at: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
     query = """
-            SET TIME ZONE 'US/Eastern'; 
             INSERT INTO daily_gifs (gif_id, url, user_id, author)
             SELECT gifs.id, gifs.url, %s, %s
             FROM gifs
@@ -210,7 +211,6 @@ async def add_daily_gif(user):
 
 async def get_daily_gif(user):
     query = """
-            SET TIME ZONE 'US/Eastern';
             SELECT gif_id, user_id, author, created_at, url FROM daily_gifs 
             ORDER BY created_at DESC
             LIMIT 1;
@@ -393,7 +393,6 @@ async def get_gif_from_gif_id(gif_id):
 
 async def check_add_user(user_info):
     query = """
-            SET TIME ZONE 'US/Eastern';
             INSERT INTO users (user_id, username)
             VALUES (%s, %s)
             ON CONFLICT DO NOTHING;
@@ -403,7 +402,6 @@ async def check_add_user(user_info):
 
 async def get_user_info(user_id):
     query = """
-            SET TIME ZONE 'US/Eastern';
             SELECT * FROM users
             WHERE user_id = %s;
             """
@@ -414,7 +412,6 @@ async def get_user_info(user_id):
     
 async def set_user_last_status(user_info):
     query = """
-            SET TIME ZONE 'US/Eastern';
             UPDATE users
             SET last_status = NOW()
             WHERE user_id = %s;
@@ -425,13 +422,8 @@ async def set_user_last_status(user_info):
 
 async def add_user_gif(user_info, gif):
     query = """
-            SET TIME ZONE 'US/Eastern';
             INSERT INTO user_gifs (user_id, gif_id)
             VALUES (%s, %s)
-            ON CONFLICT (user_id, gif_id)
-            DO UPDATE SET
-            amount = user_gifs.amount + 1,
-            new_obtain_date = NOW();
             """
 
     await exec_write(query, params=(user_info['user_id'], gif['id'],))

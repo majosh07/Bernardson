@@ -179,8 +179,13 @@ async def get_num_gifs(user):
             SELECT SUM(amount) FROM user_gifs
             WHERE user_id = %s;
             """
-    return await fetch_value(query, params=(user.id,))
 
+    amount = await fetch_value(query, params=(user.id,))
+
+    if amount is None:
+        amount = 0
+
+    return amount
 async def get_num_tier_gifs(user, tier):
     query = """
             SELECT SUM(amount) 
@@ -188,7 +193,12 @@ async def get_num_tier_gifs(user, tier):
             INNER JOIN gifs ON user_gifs.gif_id = gifs.id
             WHERE user_gifs.user_id = %s AND gifs.tier = %s;
             """
-    return await fetch_value(query, params=(user.id, tier))
+    amount = await fetch_value(query, params=(user.id, tier))
+
+    if amount is None:
+        amount = 0
+
+    return amount
 
 async def add_daily_gif(user):
     print(f"New daily_gif at: {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")

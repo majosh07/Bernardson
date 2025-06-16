@@ -45,6 +45,7 @@ class Gacha(commands.Cog):
 
         user_info = await get_user_info(ctx.author.id)
         prev_roll_count = user_info['roll_count']
+        prev_daily_streak = user_info['daily_streak']
 
         daily_streak, was_bonus = await check_add_daily_streak(ctx.author, self.args.admin_streak)
 
@@ -53,15 +54,17 @@ class Gacha(commands.Cog):
         await set_last_status()
 
         logger.info(f"{ctx.author.name}'s RollCount: {roll_count}")
-        info = (
-            today_gif,
-            is_new,
-            roll_count,
-            prev_roll_count,
-            daily_streak,
-            was_bonus,
-        )
-        embed = await self.make_daily_embed(*info)
+        info = {
+            "today_gif": today_gif,
+            "is_new": is_new,
+            "roll_count": roll_count,
+            "prev_roll_count": prev_roll_count,
+            "daily_streak": daily_streak,
+            "prev_daily_streak": prev_daily_streak,
+            "was_bonus": was_bonus,
+        }
+        logger.info("going into daily_embed")
+        embed = await self.make_daily_embed(**info)
 
         await ctx.send(embed=embed)
 
@@ -119,10 +122,13 @@ class Gacha(commands.Cog):
 
 
 
-    async def make_daily_embed(self, today_gif, is_new, roll_count, prev_roll_count, daily_streak, was_bonus):
+    # today_gif, is_new, roll_count, roll_count, prev_roll_count, daily_streak, prev_daily_streak, was_bonus
+    async def make_daily_embed(self, **info):
         embed = None
 
-        if is_new:
+        logger.info(info)
+
+        if info['is_new']:
             embed = Embed(
                 title="New Daily GIF!",
                 color=0xFF0000,
@@ -132,27 +138,28 @@ class Gacha(commands.Cog):
                 title="Daily GIF",
                 color=0x0000FF,
             )
-        if type(today_gif) is not dict:
-            print(type(today_gif))
+        if type(info['today_gif']) is not dict:
+            print(type(info['today_gif']))
             raise ValueError("this should be a Dict")
 
-        gif_info = await get_gif_from_gif_id(today_gif['gif_id'])
+        gif_info = await get_gif_from_gif_id(info['today_gif']['gif_id'])
 
         est = ZoneInfo("US/Eastern")
-        date_time = today_gif['created_at'].astimezone(est)
+        date_time = info['today_gif']['created_at'].astimezone(est)
         date_readable = date_time.strftime('%I:%M %p')
 
-        num_rolls = str(roll_count) if prev_roll_count == roll_count else f"({prev_roll_count}) -> **{roll_count}**"
+        num_rolls = str(info['roll_count']) if info['prev_roll_count'] == info['roll_count'] else f"({info['prev_roll_count']}) -> **{info['roll_count']}**"
+        daily_streak = str(info['daily_streak']) if info['prev_daily_streak'] == info['daily_streak'] else f"({info['prev_daily_streak']}) -> **{info['daily_streak']}**"
 
         embed.add_field(name="Tier", value=gif_info['tier'])
-        if was_bonus:
+        if info['was_bonus']:
             embed.add_field(name="Daily Streak!!!", value=daily_streak)
             embed.add_field(name="Num Rolls", value=f"{num_rolls}!!!")
         else:
-            embed.add_field(name="Daily Streak", value=str(daily_streak))
+            embed.add_field(name="Daily Streak", value=daily_streak)
             embed.add_field(name="Num Rolls", value=num_rolls)
-        embed.set_footer(text=f"Chosen by: {today_gif['author']} at {date_readable}")
-        embed.set_image(url=today_gif['url'])
+        embed.set_footer(text=f"Chosen by: {info['today_gif']['author']} at {date_readable}")
+        embed.set_image(url=info['today_gif']['url'])
 
         return embed
 

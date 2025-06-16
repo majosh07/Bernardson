@@ -181,11 +181,10 @@ async def get_num_gifs(user):
             """
 
     amount = await fetch_value(query, params=(user.id,))
-
     if amount is None:
         amount = 0
-
     return amount
+
 async def get_num_tier_gifs(user, tier):
     query = """
             SELECT SUM(amount) 
@@ -194,10 +193,8 @@ async def get_num_tier_gifs(user, tier):
             WHERE user_gifs.user_id = %s AND gifs.tier = %s;
             """
     amount = await fetch_value(query, params=(user.id, tier))
-
     if amount is None:
         amount = 0
-
     return amount
 
 async def add_daily_gif(user):

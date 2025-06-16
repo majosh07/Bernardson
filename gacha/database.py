@@ -176,14 +176,14 @@ async def set_last_status():
 
 async def get_num_gifs(user):
     query = """
-            SELECT COUNT(*) FROM user_gifs
+            SELECT SUM(amount) FROM user_gifs
             WHERE user_id = %s;
             """
     return await fetch_value(query, params=(user.id,))
 
 async def get_num_tier_gifs(user, tier):
     query = """
-            SELECT COUNT(*) 
+            SELECT SUM(amount) 
             FROM user_gifs
             INNER JOIN gifs ON user_gifs.gif_id = gifs.id
             WHERE user_gifs.user_id = %s AND gifs.tier = %s;
@@ -408,15 +408,19 @@ async def set_user_last_status(user_info):
             UPDATE users
             SET last_status = NOW()
             WHERE user_id = %s;
-            """
+            """ 
 
     await exec_write(query, params=(user_info['user_id'],))
 
 
 async def add_user_gif(user_info, gif):
     query = """
-            INSERT INTO user_gifs (user_id, gif_id, obtain_date)
-            VALUES (%s, %s, NOW())
+            INSERT INTO user_gifs (user_id, gif_id)
+            VALUES (%s, %s)
+            ON CONFLICT (user_id, gif_id)
+            DO UPDATE SET
+            amount = user_gifs.amount + 1,
+            new_obtain_date = NOW();
             """
 
     await exec_write(query, params=(user_info['user_id'], gif['id'],))

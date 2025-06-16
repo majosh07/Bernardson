@@ -10,28 +10,31 @@ from dateutil.relativedelta import relativedelta
 from logging_config import logger
 
 GACHA_CHANNEL_ID = 1129160056387153990
+TESTING_CHANNEL_ID = 1136423792822997002
 
 class Gacha(commands.Cog):
     def __init__(self, bot, args) -> None:
         self.bot = bot
         self.args = args
 
-    # @commands.Cog.listener()
-    # async def on_ready(self):
-    #     from gacha.help import help_texts
-    #     for name, data in help_texts.items():
-    #         command = self.bot.get_command(name)
-    #         if command:
-    #             command.help = data["help"]
-    #             command.brief = data["brief"]
-    #             command.usage = data["usage"]
+    @commands.Cog.listener()
+    async def on_ready(self):
+        from gacha.help import help_texts
+        for name, data in help_texts.items():
+            command = self.bot.get_command(name)
+            if command:
+                command.help = data["help"]
+                command.brief = data["brief"]
+                command.usage = data["usage"]
 
     async def cog_check(self, ctx): # pyright: ignore
         user_info = ctx.author
-        if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID:
+        if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID and ctx.channel.id != TESTING_CHANNEL_ID:
+
             return False
         await check_add_user(user_info)
         return True
+
 
 
     @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
@@ -76,7 +79,7 @@ class Gacha(commands.Cog):
         user_info['s_pity'], user_info['a_pity'] = await add_pities(user_info)
 
         chosen_tier, hit_pity = self.choose_tier(user_info)
-        
+
         chosen_gif = await get_rand_gif_with_tier(chosen_tier)
 
         await reset_pities(user_info, chosen_tier)

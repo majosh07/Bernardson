@@ -100,6 +100,7 @@ async def exec_write(query, params=None, commit=True):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
                 await cur.execute(query, params)
 
                 if commit:
@@ -173,7 +174,7 @@ async def set_last_status():
 
 async def get_num_gifs(user):
     query = """
-            SELECT COUNT(*) FROM user_gifs
+            SELECT SUM(amount) FROM user_gifs
             WHERE user_id = %s;
             """
 
@@ -184,7 +185,7 @@ async def get_num_gifs(user):
 
 async def get_num_tier_gifs(user, tier):
     query = """
-            SELECT COUNT(*)
+            SELECT SUM(amount) 
             FROM user_gifs
             INNER JOIN gifs ON user_gifs.gif_id = gifs.id
             WHERE user_gifs.user_id = %s AND gifs.tier = %s;
@@ -427,6 +428,10 @@ async def add_user_gif(user_info, gif):
             SET TIME ZONE 'US/Eastern';
             INSERT INTO user_gifs (user_id, gif_id)
             VALUES (%s, %s)
+            ON CONFLICT (user_id, gif_id)
+            DO UPDATE SET
+            amount = user_gifs.amount + 1,
+            new_obtain_date = NOW();
             """
 
     await exec_write(query, params=(user_info['user_id'], gif['id'],))

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 from discord import Embed, Member
 from discord.ext import commands
@@ -119,6 +120,68 @@ class Gacha(commands.Cog):
             await ctx.send("Something went wrong...")
             print("Stats general error:", e)
 
+    @commands.command(aliases=['f',])
+    async def favorite(self, ctx, gif_id: Optional[str] = None):
+        if gif_id is None:
+            await ctx.send("Missing GIF_ID")
+            return
+        if not isinstance(gif_id, str) or not gif_id.isdigit():
+            await ctx.send("Not a valid GIF_ID")
+            return
+
+        gif_id = int(gif_id) # pyright: ignore
+
+        gifs = await find_user_gifs(gif_id, ctx.author)
+
+        if gifs is None or not isinstance(gifs, list):
+            await ctx.send("Couldn't Find GIF in Inventory(Are you sure you have it?)")
+            return
+
+        gif = await self.select_gif(ctx, gifs)
+
+        if gif is None:
+            await ctx.send("Cancelled Favorite...")
+            return
+        elif gif is False:
+            await ctx.send("Already have GIF added")
+            return
+
+        await add_fav_gif(gif, ctx.author)
+        await ctx.send(f"Added GIF ID: {gif['id']} to {ctx.author.name}'s favorites.")
+
+
+    @commands.command(aliases=['uf',])
+    async def unfavorite(self, ctx, gif_id: Optional[str] = None):
+        if gif_id is None:
+            await ctx.send("Missing GIF_ID")
+            return
+        if not isinstance(gif_id, str) or not gif_id.isdigit():
+            await ctx.send("Not a valid GIF_ID")
+            return
+
+        gif_id = int(gif_id) # pyright: ignore
+
+        gif = await check_gif_in_fav(gif_id, ctx.author.id)
+
+        if gif is None:
+            await ctx.send(f"GIF ID: {gif_id} is not in your favorites...")
+            return
+
+        other_gif_info = await get_gif_from_gif_id(gif_id)
+        gif['tier'] = other_gif_info['tier']
+        gif['url'] = other_gif_info['url']
+        gif['id'] = gif_id
+
+        embeds = self.make_fav_embed(gif, ctx.author.name, False)
+
+        message = await ctx.send(embeds=embeds)
+
+        if await self.are_you_sure(ctx, message) == "✅":
+            await remove_fav_gif(gif_id, ctx.author.id)
+            await ctx.send(f"Removed GIF ID: {gif_id} from {ctx.author.name}'s favorites")
+        else:
+            await ctx.send(f"Cancelled unfavorite...")
+        
 
 
 
@@ -260,5 +323,112 @@ class Gacha(commands.Cog):
         return probs
 
 
+    async def select_gif(self, ctx, gifs):
+        user_info = await get_user_info(ctx.author.id)
+
+        gif = await get_gif_from_gif_id(gifs[0][2])
+        for thing in gifs:
+            logger.info(thing[1])
+        gif['new_obtain_date'] = gifs[0][1]
+        gif['old_obtain_date'] = gifs[-1][1]
+        gif['id'] = gifs[0][2]
+
+        # do a check to see if already in user_favorites
+        if await check_gif_in_fav(gif['id'], user_info['user_id']):
+            return False
+
+        embeds = self.make_fav_embed(gif, user_info['username'], True)
+
+        message = await ctx.send(embeds=embeds)
+
+        if await self.are_you_sure(ctx, message) == "✅":
+            return gif
+        else:
+            return None
 
 
+
+    def make_fav_embed(self, gif, username, is_add):
+        if is_add:
+            est = ZoneInfo("US/Eastern")
+            recent_date_time = gif['new_obtain_date'].astimezone(est)
+            oldest_date_time = gif['old_obtain_date'].astimezone(est)
+            new_date_readable = recent_date_time.strftime('%B %-d, %Y at %-I:%M %p')
+            old_date_readable = oldest_date_time.strftime('%B %-d, %Y at %-I:%M %p')
+
+            embed1 = Embed()
+            embed1.title = f"{username} is favoriting..."
+            if gif['tier'] == 'S':
+                embed1.color = 0xFFD700
+            elif gif['tier'] == 'A':
+                embed1.color = 0x7F00FF
+            elif gif['tier'] == 'B':
+                embed1.color = 0x00CC66
+            elif gif['tier'] == 'C':
+                embed1.color = 0x000099
+
+            embed1.add_field(name="Tier", value=gif['tier'])
+            embed1.add_field(name="GIF ID", value=gif['id'])
+            if gif['new_obtain_date'] == gif['old_obtain_date']:
+                embed1.add_field(name="Date Rolled", value=new_date_readable)
+            else:
+                embed1.add_field(name="Oldest Date Rolled", value=old_date_readable)
+                embed1.add_field(name="Newest Date Rolled", value=new_date_readable)
+            embed1.set_image(url=gif['url'])
+
+            embed2 = Embed()
+            embed2.color = embed1.color
+            embed2.title = f"Please Confirm adding to Favorites"
+            embed2.description = f"Use the ✅(confirms fav), ❌(Cancels)."
+
+            return [embed1, embed2]
+        else:
+            est = ZoneInfo("US/Eastern")
+            date_time = gif['favorited_at'].astimezone(est)
+            date_readable = date_time.strftime('%B %-d, %Y at %-I:%M %p')
+
+            embed1 = Embed()
+            embed1.title = f"{username} is UNfavoriting..."
+            if gif['tier'] == 'S':
+                embed1.color = 0xFFD700
+            elif gif['tier'] == 'A':
+                embed1.color = 0x7F00FF
+            elif gif['tier'] == 'B':
+                embed1.color = 0x00CC66
+            elif gif['tier'] == 'C':
+                embed1.color = 0x000099
+
+            embed1.add_field(name="Tier", value=gif['tier'])
+            embed1.add_field(name="GIF ID", value=gif['id'])
+            embed1.add_field(name="Favorited Date", value=date_readable)
+            embed1.set_image(url=gif['url'])
+
+            embed2 = Embed()
+            embed2.color = embed1.color
+            embed2.title = f"Please Confirm REMOVING FROM Favorites"
+            embed2.description = f"Use the ✅(confirms REMOVAL), ❌(Cancels)."
+
+            return [embed1, embed2]
+
+    async def are_you_sure(self, ctx, message):
+        await asyncio.gather(
+            message.add_reaction("✅"),
+            message.add_reaction("❌"),
+        )
+
+        def check(reaction, user):
+            return (
+                user == ctx.author and
+                reaction.message.id == message.id and
+                str(reaction.emoji) in ["✅", "❌"]
+            )
+
+        # this can be different, turned to while
+        try:
+            reaction, user = await self.bot.wait_for("reaction_add", check=check, timeout=30.0)
+
+        except asyncio.TimeoutError:
+            await ctx.send("Longer than 30 second response")
+            return None
+
+        return reaction.emoji

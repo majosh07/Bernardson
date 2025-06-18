@@ -22,12 +22,42 @@ async def fetch_value(query, params=None, commit=False):
 
                 res = await cur.fetchone()
                 if res is None:
-                    raise ValueError(f"No result from:\n{query}\nParams:\n{params}")
+                    return None
+                    # raise ValueError(f"No result from:\n{query}\nParams:\n{params}")
 
                 if commit:
                     await conn.commit()
 
                 return res[0]
+
+            except psycopg.IntegrityError:
+                logger.exception("Integrity error:")  # e.g. duplicate key, not null violation
+                raise
+            except psycopg.OperationalError:
+                logger.exception("Operational error:")  # e.g. connection issues
+                raise
+            except psycopg.DatabaseError:
+                logger.exception("Database error:")  # general DB issues
+                raise
+            except Exception:
+                logger.exception("Other error:")  # fallback
+                raise
+
+async def fetch_all(query, params=None, commit=False):
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute("SET TIME ZONE 'US/Eastern';")
+                await cur.execute(query, params)
+
+                res = await cur.fetchall()
+                if res is None:
+                    raise ValueError(f"No result from:\n{query}\nParams:\n{params}")
+
+                if commit:
+                    await conn.commit()
+
+                return res
 
             except psycopg.IntegrityError:
                 logger.exception("Integrity error:")  # e.g. duplicate key, not null violation
@@ -80,7 +110,8 @@ async def fetch_dict(query, params=None, commit=False):
 
                 row = await cur.fetchone()
                 if row is None:
-                    raise ValueError(f"Could not fetch dict: \n{query}\nParams: \n{params}")
+                    return None
+                    # raise ValueError(f"No result from:\n{query}\nParams:\n{params}")
 
                 if commit:
                     await conn.commit()
@@ -390,6 +421,45 @@ async def get_gif_from_gif_id(gif_id):
 
     return gif_info
 
+async def get_user_gifs(gif_id, user):
+    query = """
+            SELECT id, obtain_date, gif_id, user_id FROM user_gifs
+            WHERE gif_id = %s AND user_id = %s
+            ORDER BY obtain_date DESC;
+            """
+
+    gifs_info = await fetch_all(query, params=(gif_id, user.id))
+
+    return gifs_info
+
+# returns None if it doesn't find one
+async def find_user_gifs(gif_id, user):
+    try:
+        gifs = await get_user_gifs(gif_id, user)
+        if not len(gifs):
+            return None
+        return gifs
+    except psycopg.DatabaseError as e:
+        logger.info(e)
+        return None
+    except Exception as e:
+        logger.info(e)
+        return None
+
+
+async def find_user_gif_by_id(id):
+    query = """
+            SELECT * FROM user_gifs
+            WHERE id = %s;
+            """
+    gif = await fetch_dict(query, params=(id,))
+
+    if gif is None:
+        return None
+
+    return gif
+
+
 
 async def check_add_user(user_info):
     query = """
@@ -427,4 +497,30 @@ async def add_user_gif(user_info, gif):
             """
 
     await exec_write(query, params=(user_info['user_id'], gif['id'],))
+
+async def check_gif_in_fav(gif_id, user_id):
+    query = """
+            SELECT * FROM user_favorites
+            WHERE user_id = %s AND gif_id = %s;
+            """
+    try:
+        return await fetch_dict(query, params=(user_id, gif_id,))
+    except ValueError:
+        return None
+
+async def add_fav_gif(gif, user):
+    query = """
+            INSERT INTO user_favorites (user_id, gif_id)
+            VALUES (%s, %s);
+            """
+    await exec_write(query, params=(user.id, gif['id'],))
+
+
+async def remove_fav_gif(gif_id, user_id):
+    query = """
+            DELETE FROM user_favorites 
+            WHERE user_id = %s AND gif_id = %s;
+            """
+    await exec_write(query, params=(user_id, gif_id,))
+
 

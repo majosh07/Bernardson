@@ -33,7 +33,7 @@ class Gacha(commands.Cog):
         if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID and ctx.channel.id != TESTING_CHANNEL_ID:
 
             return False
-        await check_add_user(user_info)
+        check_add_user(user_info)
         return True
 
 
@@ -42,17 +42,17 @@ class Gacha(commands.Cog):
     async def the_day(self, ctx):
         # add logging that user is doing askbofday
         logger.info(f"{ctx.author.name} is doing daily...")
-        today_gif, is_new = await get_daily_gif(ctx.author)
+        today_gif, is_new = get_daily_gif(ctx.author)
 
-        user_info = await get_user_info(ctx.author.id)
+        user_info = get_user_info(ctx.author.id)
         prev_roll_count = user_info['roll_count']
         prev_daily_streak = user_info['daily_streak']
 
-        daily_streak, was_bonus = await check_add_daily_streak(ctx.author, self.args.admin_streak)
+        daily_streak, was_bonus = check_add_daily_streak(ctx.author, self.args.admin_streak)
 
-        roll_count = await check_add_roll(ctx.author, was_bonus, self.args.admin_daily)
+        roll_count = check_add_roll(ctx.author, was_bonus, self.args.admin_daily)
 
-        await set_last_status()
+        set_last_status()
 
         logger.info(f"{ctx.author.name}'s RollCount: {roll_count}")
         info = {
@@ -64,31 +64,30 @@ class Gacha(commands.Cog):
             "prev_daily_streak": prev_daily_streak,
             "was_bonus": was_bonus,
         }
-        logger.info("going into daily_embed")
-        embed = await self.make_daily_embed(**info)
+        embed = self.make_daily_embed(**info)
 
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
         logger.info(f"{ctx.author.name} is rolling")
-        user_info = await get_user_info(ctx.author.id)
+        user_info = get_user_info(ctx.author.id)
 
         if user_info['roll_count'] == 0:
             await ctx.send("You don't have any rolls left ...")
             return
 
-        user_info['roll_count'] = await subtract_roll(user_info)
+        user_info['roll_count'] = subtract_roll(user_info)
 
-        user_info['s_pity'], user_info['a_pity'] = await add_pities(user_info)
+        user_info['s_pity'], user_info['a_pity'] = add_pities(user_info)
 
         chosen_tier, hit_pity = self.choose_tier(user_info)
 
-        chosen_gif = await get_rand_gif_with_tier(chosen_tier)
+        chosen_gif = get_rand_gif_with_tier(chosen_tier)
 
-        await reset_pities(user_info, chosen_tier)
+        reset_pities(user_info, chosen_tier)
 
-        await add_user_gif(user_info, chosen_gif)
+        add_user_gif(user_info, chosen_gif)
 
         embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
 
@@ -99,15 +98,15 @@ class Gacha(commands.Cog):
         member = member or ctx.author
 
         try:
-            user_info = await get_user_info(member.id)
+            user_info = get_user_info(member.id)
             if not isinstance(user_info, dict):
                 raise ValueError("user_info is not dict")
 
-            user_info["num_gifs"] = await get_num_gifs(member)
-            user_info['num_S'] = await get_num_tier_gifs(member, 'S')
-            user_info['num_A'] = await get_num_tier_gifs(member, 'A')
-            user_info['num_B'] = await get_num_tier_gifs(member, 'B')
-            user_info['num_C'] = await get_num_tier_gifs(member, 'C')
+            user_info["num_gifs"] = get_num_gifs(member)
+            user_info['num_S'] = get_num_tier_gifs(member, 'S')
+            user_info['num_A'] = get_num_tier_gifs(member, 'A')
+            user_info['num_B'] = get_num_tier_gifs(member, 'B')
+            user_info['num_C'] = get_num_tier_gifs(member, 'C')
 
             user_info['pfp'] = member.display_avatar.url
 
@@ -131,7 +130,7 @@ class Gacha(commands.Cog):
 
         gif_id = int(gif_id) # pyright: ignore
 
-        gifs = await find_user_gifs(gif_id, ctx.author)
+        gifs = find_user_gifs(gif_id, ctx.author)
 
         if gifs is None or not isinstance(gifs, list):
             await ctx.send("Couldn't Find GIF in Inventory(Are you sure you have it?)")
@@ -146,7 +145,7 @@ class Gacha(commands.Cog):
             await ctx.send("Already have GIF added")
             return
 
-        await add_fav_gif(gif, ctx.author)
+        add_fav_gif(gif, ctx.author)
         await ctx.send(f"Added GIF ID: {gif['id']} to {ctx.author.name}'s favorites.")
 
 
@@ -161,13 +160,13 @@ class Gacha(commands.Cog):
 
         gif_id = int(gif_id) # pyright: ignore
 
-        gif = await check_gif_in_fav(gif_id, ctx.author.id)
+        gif = check_gif_in_fav(gif_id, ctx.author.id)
 
         if gif is None:
             await ctx.send(f"GIF ID: {gif_id} is not in your favorites...")
             return
 
-        other_gif_info = await get_gif_from_gif_id(gif_id)
+        other_gif_info = get_gif_from_gif_id(gif_id)
         gif['tier'] = other_gif_info['tier']
         gif['url'] = other_gif_info['url']
         gif['id'] = gif_id
@@ -177,7 +176,7 @@ class Gacha(commands.Cog):
         message = await ctx.send(embeds=embeds)
 
         if await self.are_you_sure(ctx, message) == "✅":
-            await remove_fav_gif(gif_id, ctx.author.id)
+            remove_fav_gif(gif_id, ctx.author.id)
             await ctx.send(f"Removed GIF ID: {gif_id} from {ctx.author.name}'s favorites")
         else:
             await ctx.send(f"Cancelled unfavorite...")
@@ -186,10 +185,8 @@ class Gacha(commands.Cog):
 
 
     # today_gif, is_new, roll_count, roll_count, prev_roll_count, daily_streak, prev_daily_streak, was_bonus
-    async def make_daily_embed(self, **info):
+    def make_daily_embed(self, **info):
         embed = None
-
-        logger.info(info)
 
         if info['is_new']:
             embed = Embed(
@@ -205,7 +202,7 @@ class Gacha(commands.Cog):
             print(type(info['today_gif']))
             raise ValueError("this should be a Dict")
 
-        gif_info = await get_gif_from_gif_id(info['today_gif']['gif_id'])
+        gif_info = get_gif_from_gif_id(info['today_gif']['gif_id'])
 
         est = ZoneInfo("US/Eastern")
         date_time = info['today_gif']['created_at'].astimezone(est)
@@ -324,17 +321,15 @@ class Gacha(commands.Cog):
 
 
     async def select_gif(self, ctx, gifs):
-        user_info = await get_user_info(ctx.author.id)
+        user_info = get_user_info(ctx.author.id)
 
-        gif = await get_gif_from_gif_id(gifs[0][2])
-        for thing in gifs:
-            logger.info(thing[1])
+        gif = get_gif_from_gif_id(gifs[0][2])
         gif['new_obtain_date'] = gifs[0][1]
         gif['old_obtain_date'] = gifs[-1][1]
         gif['id'] = gifs[0][2]
 
         # do a check to see if already in user_favorites
-        if await check_gif_in_fav(gif['id'], user_info['user_id']):
+        if check_gif_in_fav(gif['id'], user_info['user_id']):
             return False
 
         embeds = self.make_fav_embed(gif, user_info['username'], True)

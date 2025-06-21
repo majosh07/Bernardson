@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import ConnectionPool
 
 
 load_dotenv()
@@ -8,7 +8,7 @@ load_dotenv()
 db_url = os.environ.get('DATABASE_URL')
 
 if db_url:
-    pool = AsyncConnectionPool(conninfo=db_url, min_size=1, max_size=2, open=False, max_lifetime=300,)
+    pool = ConnectionPool(conninfo=db_url, min_size=1, max_size=2, open=False, max_lifetime=300,)
 
 else:
     envs = {
@@ -30,7 +30,7 @@ else:
         f"host={envs['db_host']} "
         f"port={envs['db_port']} "
     )
-    pool = AsyncConnectionPool(conninfo=conn_info, open=False, max_lifetime=300)
+    pool = ConnectionPool(conninfo=conn_info, open=False, max_lifetime=300)
 
     # add logging here
 

@@ -6,7 +6,7 @@ from discord.ext.commands import Bot
 from gacha.cog import Gacha
 from jokebox.cog import Jokebox
 from notifs.cog import Notifs
-from keep_alive import keep_alive
+from website.app import website_run
 import asyncio
 import signal
 from pool import pool
@@ -52,11 +52,8 @@ class askBernardson(Bot):
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')
 
-    async def on_close(self):
-        await self.shutdown()
-
     async def shutdown(self):
-        await pool.close()
+        pool.close()
         await self.close()
 
 @commands.command(aliases=["sh"])
@@ -79,9 +76,12 @@ async def main(TOKEN):
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.shutdown()))
 
-    await pool.open()
-    keep_alive()
-    await bot.start(TOKEN)
+    pool.open()
+    website_run()
+    try:
+        await bot.start(TOKEN)
+    finally:
+        await bot.shutdown()
 
 
 asyncio.run(main(TOKEN))

@@ -110,7 +110,9 @@ class Gacha(commands.Cog):
 
             user_info['pfp'] = member.display_avatar.url
 
-            embeds = self.make_stats_embeds(user_info, ctx.author.name)
+            is_local = ctx.prefix == "!"
+
+            embeds = self.make_stats_embeds(user_info, ctx.author.name, is_local)
 
             await ctx.send(embeds=embeds)
         except ValueError as e:
@@ -249,7 +251,7 @@ class Gacha(commands.Cog):
 
         return embed
     
-    def make_stats_embeds(self, user_info, author):
+    def make_stats_embeds(self, user_info, author, is_local=False):
         est = ZoneInfo("US/Eastern")
         date_time = user_info['created_at'].astimezone(est)
         date_readable = date_time.strftime('%B %-d, %Y')
@@ -258,11 +260,10 @@ class Gacha(commands.Cog):
         age = relativedelta(now, date_time)
 
         embed1 = Embed()
-        embed1.title = "Info"
+        embed1.title = f"{user_info['username']}'s Info"
 
         embed1.add_field(name="Num Rolls", value=user_info['roll_count'], inline=True)
         embed1.add_field(name="Daily Streak", value=user_info['daily_streak'], inline=True)
-        embed1.add_field(name="URL", value="Coming soon...", inline=True)
         embed1.add_field(name="S Pity", value=user_info['s_pity'], inline=True)
         embed1.add_field(name="A Pity", value=user_info['a_pity'], inline=True)
         embed1.add_field(name="Created Account", value=f"{date_readable}\n({age.days} days old)", inline=True)
@@ -271,7 +272,7 @@ class Gacha(commands.Cog):
         embed1.set_image(url=user_info['pfp'])
 
         embed2 = Embed()
-        embed2.title = "Stats"
+        embed2.title = f"{user_info['username']}'s Stats"
 
         embed2.set_footer(text=f"For {author}")
 
@@ -281,6 +282,14 @@ class Gacha(commands.Cog):
         embed2.add_field(name="B tiers", value=user_info['num_B'], inline=True)
         embed2.add_field(name="C tiers", value=user_info['num_C'], inline=True)
         embed2.add_field(name="Can add gif", value="Coming Soon...", inline=True)
+
+
+        if is_local:
+            embed1.url = f"http://localhost:8080/user/{user_info['username']}"
+            embed1.add_field(name="URL", value=f"http://localhost:8080/user/{user_info['username']}", inline=True)
+        else:
+            embed1.url = f"https://bernardson.onrender.com/user/{user_info['username']}"
+            embed1.add_field(name="URL", value=f"https://bernardson.onrender.com/user/{user_info['username']}", inline=True)
 
         return [embed1, embed2]
 

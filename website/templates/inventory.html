@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Inventory</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+	<h1>{{ username }}'s GIFS</h1>
+	<div class="gif_container">
+		{% for gif in user_gifs %}
+		<div class="gif_wrapper">
+			<img class="gif_image {{ gif.tier|lower }}" src="{{ gif.url }}" alt="Something went wrong...">
+			<div class="text_box"> 
+				<p>ID: {{ gif.id }} </p>
+				<p>Tier: {{ gif.tier }}</p>
+				<p>Obtain_date: {{ gif.obtain_date }} </p>
+			</div>
+		</div>
+		{% endfor %}
+	</div>
+
+</body>
+
+</html>

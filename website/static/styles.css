@@ -1,0 +1,72 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.gif_container {
+	width: 100%;
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0 auto;
+	gap: 20px;
+}
+
+.gif_wrapper {
+	position: relative;
+	display: inline-block;
+}
+
+.text_box {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	color: white;
+	opacity: 0;
+
+	background: rgba(36, 37, 42, 0.4);
+
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	transition opacity: 0.3s ease;
+}
+
+.gif_wrapper:hover .text_box {
+	opacity: 1;
+} 
+
+.gif_container img {
+	height: 300px;
+	width: 100%;
+	object-fit: cover;
+}
+
+.gif_container img:hover {
+	opacity: 50%;
+}
+
+.gif_image {
+	display: block;
+	width: 100%;
+}
+
+.gif_image.s {
+	border: 5px solid #FFD700;
+}
+
+.gif_image.a {
+	border: 5px solid #7F00FF;
+}
+
+.gif_image.b {
+	border: 5px solid #00CC66;
+}
+
+.gif_image.c {
+	border: 5px solid #000099;
+}
+

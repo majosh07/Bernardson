@@ -11,17 +11,42 @@
 <body>
 
 	<h1>{{ username }}'s GIFS</h1>
+
+	<h2>Favorites</h2>
+	
 	<div class="gif_container">
-		{% for gif in user_gifs %}
-		<div class="gif_wrapper">
-			<img class="gif_image {{ gif.tier|lower }}" src="{{ gif.url }}" alt="Something went wrong...">
-			<div class="text_box"> 
-				<p>ID: {{ gif.id }} </p>
-				<p>Tier: {{ gif.tier }}</p>
-				<p>Obtain_date: {{ gif.obtain_date }} </p>
+		{% if not fav_gifs%}
+			<h3>{{ username }} does not have any favorites...</h3>
+		{% else %}
+			{% for gif in fav_gifs %}
+			<div class="gif_wrapper">
+				<img class="gif_image {{ gif.tier|lower }}" src="{{ gif.url }}" alt="Something went wrong...">
+				<div class="text_box"> 
+					<p>ID: {{ gif.id }} </p>
+					<p>Tier: {{ gif.tier }}</p>
+					<p>Favorited On: {{ gif.favorited_at }} </p>
+				</div>
 			</div>
-		</div>
-		{% endfor %}
+			{% endfor %}
+		{% endif %}
+	</div>	
+	
+	<h2>Full Inventory</h2>
+	<div class="gif_container">
+		{% if not user_gifs%}
+			<h3>{{ username }} does not have any favorites...</h3>
+		{% else %}
+			{% for gif in user_gifs %}
+			<div class="gif_wrapper">
+				<img class="gif_image {{ gif.tier|lower }}" src="{{ gif.url }}" alt="Something went wrong...">
+				<div class="text_box"> 
+					<p>ID: {{ gif.id }} </p>
+					<p>Tier: {{ gif.tier }}</p>
+					<p>Obtain Date: {{ gif.obtain_date }} </p>
+				</div>
+			</div>
+			{% endfor %}
+		{% endif %}
 	</div>
 
 </body>

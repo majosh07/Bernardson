@@ -44,10 +44,29 @@ def index(name):
     for idx, gif in enumerate(user_gifs_sorted):
         date_time = gif['obtain_date'].astimezone(est)
         user_gifs_sorted[idx]['obtain_date'] = date_time.strftime('%B %-d, %Y at %-I:%M %p')
-    
+
+    query = """
+            with f_gifs (id, favorited_at) AS (
+                SELECT gif_id, favorited_at
+                FROM user_favorites
+                WHERE user_id = %s
+                ORDER BY favorited_at
+            )
+            SELECT f_gifs.id, gifs.tier, gifs.url, f_gifs.favorited_at
+            FROM f_gifs
+            INNER JOIN gifs ON f_gifs.id = gifs.id
+            ORDER BY f_gifs.favorited_at;
+            """
+
+    favorite_gifs = fetch_dict_all(query, params=(user['user_id'],))
+
+    for idx, gif in enumerate(favorite_gifs):
+        date_time = gif['favorited_at'].astimezone(est)
+        favorite_gifs[idx]['favorited_at'] = date_time.strftime('%B %-d, %Y at %-I:%M %p')
+
     context = {
         "username": name,
         "user_gifs": user_gifs_sorted,
+        "fav_gifs": favorite_gifs,
     }
-
     return render_template("inventory.html", **context)

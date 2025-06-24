@@ -7,6 +7,7 @@ from gacha.cog import Gacha
 from jokebox.cog import Jokebox
 from notifs.cog import Notifs
 from website.app import website_run
+from birthdays.cog import Birthdays
 import asyncio
 import signal
 from pool import pool
@@ -48,6 +49,7 @@ class askBernardson(Bot):
         await self.add_cog(Gacha(self, args))
         await self.add_cog(Jokebox(self, args))
         await self.add_cog(Notifs(self, args))
+        await self.add_cog(Birthdays(self, args))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')

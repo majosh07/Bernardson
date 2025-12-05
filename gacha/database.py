@@ -196,7 +196,7 @@ def check_add_daily_streak(user, admin_streak=False):
     else:
         query = """
         UPDATE users
-        SET daily_streak = 0
+        SET daily_streak = 1
         WHERE user_id = %s
         RETURNING daily_streak;
         """

@@ -4,12 +4,9 @@ from gacha.database import has_day_passed, get_last_status
 from datetime import datetime
 from queries import *
 
-
-
-
 dates = [
-    datetime(year=2025, month=6, day=23),
-    datetime(year=2025, month=6, day=23),
+    datetime(year=2025, month=6, day=24),
+    datetime(year=2025, month=6, day=24),
 ]
 
 CHANNEL_ID = 1136423792822997002
@@ -32,11 +29,19 @@ class Birthdays(commands.Cog):
         if not has_day_passed(self.last_status):
             return
 
+        query = """
+                SELECT * FROM birthdays;
+                """
+        birthday_list = fetch_dict_all(query,)
+
         channel = self.bot.get_channel(CHANNEL_ID)
         today = datetime.now()
-        for birth in dates:
-            if birth.date() == today.date():
-                await channel.send(f"It is {birth}")
+        for user in birthday_list:
+            birthdate = user['birthdate']
+            if birthdate.month == today.month and birthdate.day == today.day:
+                dc_user = await self.bot.fetch_user(user['user_id'])
+                mention = dc_user.mention
+                await channel.send(f"It is {mention}'s birthday today!!!")
         self.last_status = datetime.now().astimezone(self.est)
 
     @celebrate.before_loop

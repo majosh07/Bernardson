@@ -313,6 +313,4 @@ khaled_gifs = ["https://tenor.com/view/twerk-dj-khaled-gif-16758313558864362681"
 khaled_tiers = ['S', 'S', 'S', 'S', 'A', 'B', 'S']
 
 
-print(len(askb_list) + len(khaled_gifs))
-print(len(tier_values) + len(khaled_tiers))
 

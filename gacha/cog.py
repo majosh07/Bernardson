@@ -1,20 +1,19 @@
-# import asyncio
-# from typing import Optional
+from typing import Optional
 from discord import Embed, Member
 from discord.ext import commands
-# from gacha.gacha_probabilities import *
-# import random
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
-# from logging_config import logger
 
-from db.gacha import GachaRepo, DailyResult
+from db.gacha import GachaRepo
+from db.models import DailyResult, RollResult, UserStatsResult
 from gacha.utils import get_display_name
+import time
 
 
 
 GACHA_CHANNEL_ID = 1129160056387153990
 TESTING_CHANNEL_ID = 1136423792822997002
+
+SECONDS_IN_A_DAY = 86400
 
 class Gacha(commands.Cog):
     def __init__(self, bot, args, db) -> None:
@@ -45,43 +44,47 @@ class Gacha(commands.Cog):
     async def the_day(self, ctx):
         info: DailyResult = await self.repo.daily_gif(user_id=ctx.author.id)
         
-        embed = await self.make_daily_embed(info, ctx.guild)
+        name = await get_display_name(self.bot, ctx.guild, info.reveal.triggered_by)
+        embed = self.make_daily_embed(info, name)
 
         await ctx.send(embed=embed)
 
 
     @commands.command(aliases=['r', 'roll'])
     async def the_roll(self, ctx):
+        # gif: tier, id, media_url
+        # user_info: roll_count, username(passed from ctx.author)
+        # know if we hit pity
+        try:
+            roll: RollResult | None = await self.repo.roll(user_id=ctx.author.id)
+        except ValueError:
+            await ctx.send("You don't have any rolls left ...")
+            return
 
-        embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
+        name = await get_display_name(self.bot, ctx.guild, ctx.author.id)
+        embed = self.make_rolled_embed(roll, name)
 
         await ctx.send(embed=embed)
 
-    # @commands.command(aliases=['r', 'roll'])
-    # async def the_roll(self, ctx):
-    #     logger.info(f"{ctx.author.name} is rolling")
-    #     user_info = get_user_info(ctx.author.id)
-    #
-    #     if user_info['roll_count'] == 0:
-    #         await ctx.send("You don't have any rolls left ...")
-    #         return
-    #
-    #     user_info['roll_count'] = subtract_roll(user_info)
-    #
-    #     user_info['s_pity'], user_info['a_pity'] = add_pities(user_info)
-    #
-    #     chosen_tier, hit_pity = self.choose_tier(user_info)
-    #
-    #     chosen_gif = get_rand_gif_with_tier(chosen_tier)
-    #
-    #     reset_pities(user_info, chosen_tier)
-    #
-    #     add_user_gif(user_info, chosen_gif)
-    #
-    #     embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
-    #
-    #     await ctx.send(embed=embed)
-    #
+    @commands.command(aliases=['s',])
+    async def stats(self, ctx, member: Optional[Member] = None):
+        member = member or ctx.author
+        try:
+            stats = await self.repo.user_stats(member.id)
+        except ValueError:
+            await ctx.send("User is not in the database...")
+            return
+        except Exception as e:
+            await ctx.send("Something went wrong...")
+            raise e
+        
+        stats_name = await get_display_name(self.bot, ctx.guild, stats.user_info.user_id)
+        triggered_by = await get_display_name(self.bot, ctx.guild, ctx.author.id)
+        pfp = member.display_avatar.url
+
+        embeds = self.make_stats_embeds(stats, stats_name, pfp, triggered_by)
+        await ctx.send(embeds=embeds)
+
     # @commands.command(aliases=['s',])
     # async def stats(self, ctx, member: Optional[Member] = None):
     #     member = member or ctx.author
@@ -176,7 +179,7 @@ class Gacha(commands.Cog):
     #
     #
     # # today_gif, is_new, roll_count, roll_count, prev_roll_count, daily_streak, prev_daily_streak, was_bonus
-    async def make_daily_embed(self, info: DailyResult, guild):
+    def make_daily_embed(self, info: DailyResult, name: str):
         embed = None
 
         if info.first_of_day:
@@ -202,121 +205,86 @@ class Gacha(commands.Cog):
         # else:
         embed.add_field(name="Daily Streak", value=daily_streak)
         embed.add_field(name="Num Rolls", value=num_rolls)
-        reveal = info.reveal
-        name = await get_display_name(self.bot, guild, reveal.triggered_by)
         embed.timestamp = datetime.fromtimestamp(info.reveal.time_created, tz=timezone.utc)
         embed.set_footer(text=f"Triggered by: {name}")
 
         embed.set_image(url=info.gif.media_url)
-        # embed.set_image(url=info.gif.media_url)
         return embed
 
+    def make_rolled_embed(self, roll: RollResult, name):
+        gif = roll.gif
+        embed = Embed()
+        if gif.tier == 'S':
+            embed.color = 0xFFD700
+            embed.title = f"{name} just rolled a !!!"
+        elif gif.tier == 'A':
+            embed.color = 0x7F00FF
+            embed.title = f"{name} just rolled a ..!"
+        elif gif.tier == 'B':
+            embed.color = 0x00CC66
+            embed.title = f"{name} just rolled a ..."
+        elif gif.tier == 'C':
+            embed.color = 0x000099
+            embed.title = f"{name} just rolled a ..."
+
+
+        embed.add_field(name="Tier", value=gif.tier)
+        embed.add_field(name="GIF ID", value=gif.id)
+        embed.add_field(name="Num Rolls Left", value=str(roll.num_rolls_left))
+        if roll.used_pity:
+            embed.add_field(name="HARD PITY", value="HIT HARD PITY")
+        embed.set_footer(text=f"For {name}")
+        embed.set_image(url=gif.media_url)
+
+        return embed
+
+    def make_stats_embeds(self, stats: UserStatsResult, name: str, pfp: str, triggered_by: str):
+        user_info = stats.user_info
+        gif_stats = stats.gif_stats
+
+        days_since_created = int((time.time() - user_info.created_at) / SECONDS_IN_A_DAY)
+
+        # user created time, compare to now
+        # name, could just use the get name
+        # roll_count, streak, pities, 
+        # Triggered by author
+
+        # user_gifs, number of gifs
+        # number of S, A, B, C
+
+
+        embed1 = Embed()
+        embed1.title = f"{name}'s Info"
+        embed1.set_footer(text=f"Triggered by {triggered_by}")
+
+        embed1.add_field(name="Num Rolls", value=user_info.roll_count, inline=True)
+        embed1.add_field(name="Daily Streak", value=user_info.roll_streak, inline=True)
+        embed1.add_field(name="S Pity", value=user_info.s_pity, inline=True)
+        embed1.add_field(name="A Pity", value=user_info.a_pity, inline=True)
+        embed1.add_field(name="Created Account", value=f"({days_since_created} days old)", inline=True)
+
+        embed1.set_image(url=pfp)
+
+        embed2 = Embed()
+        embed2.title = f"{name}'s Stats"
+        embed2.set_footer(text=f"Triggered by {triggered_by}")
+
+        embed2.add_field(name="Num Gifs", value=gif_stats.num_gifs, inline=True)
+        embed2.add_field(name="S tiers", value=gif_stats.num_s, inline=True)
+        embed2.add_field(name="A tiers", value=gif_stats.num_a, inline=True)
+        embed2.add_field(name="B tiers", value=gif_stats.num_b, inline=True)
+        embed2.add_field(name="C tiers", value=gif_stats.num_c, inline=True)
+        embed2.add_field(name="Can add gif", value="Coming Soon...", inline=True)
+
+        # if is_local:
+        #     embed1.url = f"http://localhost:8080/user/{user_info['username']}"
+        #     embed1.add_field(name="URL", value=f"http://localhost:8080/user/{user_info['username']}", inline=True)
+        # else:
+        #     embed1.url = f"https://bernardson.onrender.com/user/{user_info['username']}"
+        #     embed1.add_field(name="URL", value=f"https://bernardson.onrender.com/user/{user_info['username']}", inline=True)
+
+        return [embed1, embed2]
     #
-    # def make_rolled_embed(self, gif, user_info, hit_pity):
-        # gif: tier, id, media_url
-        # user_info: roll_count, username(passed from ctx.author)
-        # know if we hit pity
-    #     embed = Embed()
-    #     if gif['tier'] == 'S':
-    #         embed.color = 0xFFD700
-    #         embed.title = f"{user_info['username']} just rolled a !!!"
-    #     elif gif['tier'] == 'A':
-    #         embed.color = 0x7F00FF
-    #         embed.title = f"{user_info['username']} just rolled a ..!"
-    #     elif gif['tier'] == 'B':
-    #         embed.color = 0x00CC66
-    #         embed.title = f"{user_info['username']} just rolled a ..."
-    #     elif gif['tier'] == 'C':
-    #         embed.color = 0x000099
-    #         embed.title = f"{user_info['username']} just rolled a ..."
-    #
-    #
-    #     embed.add_field(name="Tier", value=gif['tier'])
-    #     embed.add_field(name="GIF ID", value=gif['id'])
-    #     embed.add_field(name="Num Rolls Left", value=str(user_info['roll_count']))
-    #     if hit_pity:
-    #         embed.add_field(name="HARD PITY", value="HIT HARD PITY")
-    #     embed.set_footer(text=f"For {user_info['username']}")
-    #     embed.set_image(url=gif['url'])
-    #
-    #     return embed
-    #
-    # def make_stats_embeds(self, user_info, author, is_local=False):
-    #     est = ZoneInfo("US/Eastern")
-    #     date_time = user_info['created_at'].astimezone(est)
-    #     date_readable = date_time.strftime('%B %-d, %Y')
-    #
-    #     now = datetime.now(est)
-    #     age = relativedelta(now, date_time)
-    #
-    #     embed1 = Embed()
-    #     embed1.title = f"{user_info['username']}'s Info"
-    #
-    #     embed1.add_field(name="Num Rolls", value=user_info['roll_count'], inline=True)
-    #     embed1.add_field(name="Daily Streak", value=user_info['daily_streak'], inline=True)
-    #     embed1.add_field(name="S Pity", value=user_info['s_pity'], inline=True)
-    #     embed1.add_field(name="A Pity", value=user_info['a_pity'], inline=True)
-    #     embed1.add_field(name="Created Account", value=f"{date_readable}\n({age.days} days old)", inline=True)
-    #     embed1.set_footer(text=f"For {author}")
-    #
-    #     embed1.set_image(url=user_info['pfp'])
-    #
-    #     embed2 = Embed()
-    #     embed2.title = f"{user_info['username']}'s Stats"
-    #
-    #     embed2.set_footer(text=f"For {author}")
-    #
-    #     embed2.add_field(name="Num Gifs", value=user_info['num_gifs'], inline=True)
-    #     embed2.add_field(name="S tiers", value=user_info['num_S'], inline=True)
-    #     embed2.add_field(name="A tiers", value=user_info['num_A'], inline=True)
-    #     embed2.add_field(name="B tiers", value=user_info['num_B'], inline=True)
-    #     embed2.add_field(name="C tiers", value=user_info['num_C'], inline=True)
-    #     embed2.add_field(name="Can add gif", value="Coming Soon...", inline=True)
-    #
-    #
-    #     if is_local:
-    #         embed1.url = f"http://localhost:8080/user/{user_info['username']}"
-    #         embed1.add_field(name="URL", value=f"http://localhost:8080/user/{user_info['username']}", inline=True)
-    #     else:
-    #         embed1.url = f"https://bernardson.onrender.com/user/{user_info['username']}"
-    #         embed1.add_field(name="URL", value=f"https://bernardson.onrender.com/user/{user_info['username']}", inline=True)
-    #
-    #     return [embed1, embed2]
-    #
-    # def choose_tier(self, user_info):
-    #     s_pity = user_info['s_pity']
-    #     a_pity = user_info['a_pity']
-    #
-    #     if s_pity >= S_HARD_PITY:
-    #         logger.info(f"{user_info['username']} hit S hard pity")
-    #         return 'S', True
-    #     if a_pity >= A_HARD_PITY:
-    #         logger.info(f"{user_info['username']} hit A hard pity")
-    #         return 'A', True
-    #
-    #     probabilities = self.get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)
-    #     tiers = list(probabilities.keys())
-    #     weights = list(probabilities.values())
-    #
-    #     return random.choices(tiers, weights=weights, k=1)[0], False
-    #
-    # def get_probabilities(self, probabilities, s_pity, a_pity):
-    #     probs = probabilities
-    #     s_chance = probs['S']
-    #     a_chance = probs['A']
-    #     if s_pity >= S_SOFT_PITY_START:
-    #         s_chance = S_SLOPE * s_chance + S_INTERCEPT
-    #     if a_pity >= A_SOFT_PITY_START:
-    #         a_chance = A_SLOPE * a_chance + S_INTERCEPT
-    #     rest_of_chance = 1 - (s_chance + a_chance)
-    #
-    #     probs['S'] = s_chance
-    #     probs['A'] = a_chance
-    #     total_base = probs['B'] + probs['C']
-    #     probs['B'] = rest_of_chance * (probs['B'] / total_base)
-    #     probs['C'] = rest_of_chance * (probs['C'] / total_base)
-    #
-    #     return probs
     #
     #
     # async def select_gif(self, ctx, gifs):

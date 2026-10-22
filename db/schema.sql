@@ -63,4 +63,9 @@ CREATE TABLE IF NOT EXISTS birthdays(
     year       INTEGER
 );
 
+CREATE TRIGGER IF NOT EXISTS trg_users_create_gacha
+AFTER INSERT ON users
+BEGIN
+    INSERT INTO user_gacha (user_id, roll_count) VALUES (NEW.user_id, 10);
+END;
 

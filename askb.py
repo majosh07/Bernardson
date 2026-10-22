@@ -4,15 +4,12 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
 from gacha.cog import Gacha
-from jokebox.cog import Jokebox
-from notifs.cog import Notifs
-from website.app import website_run
-from birthdays.cog import Birthdays
+# from gacha.database import OWNER_ID
 import asyncio
 import signal
-from pool import pool
 from logging_config import logger
-from gacha.database import OWNER_ID
+from db.core import Database, sync_catalog
+import traceback
 
 # handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
@@ -41,49 +38,70 @@ intents = discord.Intents.default()
 intents.message_content= True
 intents.reactions = True
 intents.messages = True
+intents.members = True
 
 class askBernardson(Bot):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.db: Database | None = None
+
+    async def before_invoke_hook(self, ctx):
+        await self.db.ensure_user(ctx.author.id) # pyright: ignore
+
     async def setup_hook(self) -> None:
-        await self.add_cog(Gacha(self, args))
-        await self.add_cog(Jokebox(self, args))
-        await self.add_cog(Notifs(self, args))
-        await self.add_cog(Birthdays(self, args))
+        self.db = Database("db/data/bot.db")
+        await self.db.connect()
+
+        await sync_catalog(self.db, "db/gifs.json")
+        self.before_invoke(self.before_invoke_hook)
+
+        await self.add_cog(Gacha(self, args, self.db))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')
 
     async def shutdown(self):
-        pool.close()
-        await self.close()
+        try:
+            await super().close()
+        finally:
+            if self.db is not None:
+                await self.db.close()
+
+    async def on_command_error(self, ctx, error):
+        # ignore commands that don't exist, so typos don't spam the console
+        if isinstance(error, commands.CommandNotFound):
+            return
+
+        # failed checks (like your wrong-channel check) are expected
+        if isinstance(error, commands.CheckFailure):
+            return
+
+        # if the command itself crashed, the real exception is wrapped
+        original = getattr(error, "original", error)
+
+        traceback.print_exception(type(original), original, original.__traceback__)
+        await ctx.send(f"Something went wrong: `{type(original).__name__}: {original}`")
 
 @commands.command(aliases=["sh"])
 async def shutdown(ctx):
-    if ctx.author.id == OWNER_ID:
+    # if ctx.author.id == OWNER_ID:
         await ctx.send("Stopping bot...")
-        await ctx.bot.shutdown()
+        await ctx.bot.close()
 
 load_dotenv()
-db_url = os.environ.get('DATABASE_URL')
-if db_url:
-    bot = askBernardson(command_prefix=';;', intents=intents)
-else:
-    bot = askBernardson(command_prefix='!', intents=intents)
+bot = askBernardson(command_prefix=';;', intents=intents)
 bot.add_command(shutdown)
-# bot.run(TOKEN, log_handler=handler, root_logger=True)
+
 async def main(TOKEN):
     loop = asyncio.get_event_loop()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.shutdown()))
 
-    pool.open()
-    website_run()
     try:
         await bot.start(TOKEN)
     finally:
-        await bot.shutdown()
+        await bot.close()
 
 
 asyncio.run(main(TOKEN))

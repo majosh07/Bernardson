@@ -49,4 +49,10 @@ Made a floating terminal for Nvim
 
 
 
+Idea
+- integrate with other daily apps?
+  - if you did another daily app, you get something
+- generally have tasks and rewards
+
+
 

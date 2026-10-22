@@ -45,41 +45,17 @@ class Gacha(commands.Cog):
     async def the_day(self, ctx):
         info: DailyResult = await self.repo.daily_gif(user_id=ctx.author.id)
         
-        print("this is the urL: ", info.gif.url)
         embed = await self.make_daily_embed(info, ctx.guild)
 
         await ctx.send(embed=embed)
 
 
-    # @commands.command(aliases=['d', 'b', 'askbofday', 'askboftheday',])
-    # async def the_day(self, ctx):
-    #     # add logging that user is doing askbofday
-    #     logger.info(f"{ctx.author.name} is doing daily...")
-        # today_gif, is_new = get_daily_gif(ctx.author)
-    #
-    #     user_info = get_user_info(ctx.author.id)
-    #     prev_roll_count = user_info['roll_count']
-    #     prev_daily_streak = user_info['daily_streak']
-    #
-    #     daily_streak, was_bonus = check_add_daily_streak(ctx.author, self.args.admin_streak)
-    #
-    #     roll_count = check_add_roll(ctx.author, was_bonus, self.args.admin_daily)
-    #
-    #     set_last_status()
-    #
-    #     logger.info(f"{ctx.author.name}'s RollCount: {roll_count}")
-    #     info = {
-    #         "today_gif": today_gif,
-    #         "is_new": is_new,
-    #         "roll_count": roll_count,
-    #         "prev_roll_count": prev_roll_count,
-    #         "daily_streak": daily_streak,
-    #         "prev_daily_streak": prev_daily_streak,
-    #         "was_bonus": was_bonus,
-    #     }
-    #     embed = self.make_daily_embed(**info)
-    #
-    #     await ctx.send(embed=embed)
+    @commands.command(aliases=['r', 'roll'])
+    async def the_roll(self, ctx):
+
+        embed = self.make_rolled_embed(chosen_gif, user_info, hit_pity)
+
+        await ctx.send(embed=embed)
 
     # @commands.command(aliases=['r', 'roll'])
     # async def the_roll(self, ctx):
@@ -230,11 +206,16 @@ class Gacha(commands.Cog):
         name = await get_display_name(self.bot, guild, reveal.triggered_by)
         embed.timestamp = datetime.fromtimestamp(info.reveal.time_created, tz=timezone.utc)
         embed.set_footer(text=f"Triggered by: {name}")
-        embed.set_image(url=info.gif.url)
+
+        embed.set_image(url=info.gif.media_url)
+        # embed.set_image(url=info.gif.media_url)
         return embed
 
     #
     # def make_rolled_embed(self, gif, user_info, hit_pity):
+        # gif: tier, id, media_url
+        # user_info: roll_count, username(passed from ctx.author)
+        # know if we hit pity
     #     embed = Embed()
     #     if gif['tier'] == 'S':
     #         embed.color = 0xFFD700

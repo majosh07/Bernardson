@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_gifs_tier ON gifs(tier);
 
 CREATE TABLE IF NOT EXISTS user_gacha(
     user_id          INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
-    roll_count       INTEGER NOT NULL DEFAULT 10,
+    roll_count       INTEGER NOT NULL DEFAULT 10 CHECK (roll_count >= 0),
     roll_streak      INTEGER NOT NULL DEFAULT 0,
     last_daily_date  TEXT,
     a_pity           INTEGER NOT NULL DEFAULT 0,

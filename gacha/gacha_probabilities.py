@@ -1,48 +1,54 @@
 import random
 
-BASE_PROBABILITIES = {'S': 0.02, 'A': 0.12, 'B': 0.35, 'C': 0.45}
-S_HARD_PITY = 25
-S_SOFT_PITY_START = 20
-S_SOFT_PITY_CAP = 0.15
-S_SLOPE = (S_SOFT_PITY_CAP - BASE_PROBABILITIES['S']) / (S_HARD_PITY - 1 - S_SOFT_PITY_START - 1)
-S_INTERCEPT = S_SOFT_PITY_CAP - (S_SLOPE * S_HARD_PITY - 1)
-A_HARD_PITY = 8
-A_SOFT_PITY_START = 5
-A_SOFT_PITY_CAP = 0.30
-A_SLOPE = (A_SOFT_PITY_CAP - BASE_PROBABILITIES['A']) / (A_HARD_PITY - 1 - A_SOFT_PITY_START - 1)
-A_INTERCEPT = A_SOFT_PITY_CAP - (A_SLOPE * A_HARD_PITY - 1)
-
-
+BASE = {'S': 0.02, 'A': 0.12, 'B': 0.35, 'C': 0.45}
+S_HARD = 25
+S_SOFT_START = 20
+S_CAP = 0.2
+A_HARD = 8
+A_SOFT_START = 5
+A_CAP = 0.25
 
 # return a tuple
 # 0: tier that was chosen
 # 1: whether or not hard_pity was used for this decision
-def choose_tier(a_pity, s_pity):
-    if s_pity >= S_HARD_PITY:
-        return 'S', True
-    if a_pity >= A_HARD_PITY:
-        return 'A', True
+# 2: s_pity
+# 3: a_pity
+def roll_tier(s_pity, a_pity) -> tuple[str, bool, int, int]:
+    if s_pity >= S_HARD:
+        tier, hard = "S", True
+    elif a_pity >= A_HARD:
+        tier, hard = "A", True
+    else:
 
-    probabilities = get_probabilities(BASE_PROBABILITIES, s_pity, a_pity)
-    tiers = list(probabilities.keys())
-    weights = list(probabilities.values())
+        probs = get_probabilities(s_pity, a_pity)
+        weights = list(probs.values())
+        tier = random.choices(list(probs), weights=weights, k=1)[0]
+        hard = False
 
-    return random.choices(tiers, weights=weights, k=1)[0], False
+    if tier == "S":
+        s_pity, a_pity = 0, a_pity + 1
+    elif tier == "A":
+        s_pity, a_pity = s_pity + 1, 0
+    else:
+        s_pity, a_pity = s_pity + 1, a_pity + 1
 
-def get_probabilities(probabilities, s_pity, a_pity):
-    probs = probabilities
-    s_chance = probs['S']
-    a_chance = probs['A']
-    if s_pity >= S_SOFT_PITY_START:
-        s_chance = S_SLOPE * s_chance + S_INTERCEPT
-    if a_pity >= A_SOFT_PITY_START:
-        a_chance = A_SLOPE * a_chance + S_INTERCEPT
-    rest_of_chance = 1 - (s_chance + a_chance)
+    return tier, hard, s_pity, a_pity
 
-    probs['S'] = s_chance
-    probs['A'] = a_chance
-    total_base = probs['B'] + probs['C']
-    probs['B'] = rest_of_chance * (probs['B'] / total_base)
-    probs['C'] = rest_of_chance * (probs['C'] / total_base)
+def _soft_chance(base: float, cap: float, pity: int, start: int, hard: int) -> float:
+    if pity < start:
+        return base
+    slope = (cap - base) / (hard - start)
+    return min(cap, base + slope * (pity - start))
 
-    return probs
+def get_probabilities(s_pity, a_pity):
+    s = _soft_chance(BASE["S"], S_CAP, s_pity, S_SOFT_START, S_HARD)
+    a = _soft_chance(BASE["A"], A_CAP, a_pity, A_SOFT_START, A_HARD)
+    rest = 1 - a - s
+    bc = BASE["B"] * BASE["C"]
+    return {
+        "S": s,
+        "A": a,
+        "B": rest * BASE["B"] / bc,
+        "C": rest * BASE["C"] / bc,
+    }
+

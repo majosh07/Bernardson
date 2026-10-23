@@ -53,6 +53,8 @@ Idea
 - integrate with other daily apps?
   - if you did another daily app, you get something
 - generally have tasks and rewards
+- scrandle, which gif is better, eventually affect tiering of the things?
+- dueling, kind of like club penguin, would have to give typings?, 
 
 
 

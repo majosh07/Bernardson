@@ -6,14 +6,20 @@ from .models import (
     DailyProgress,
     DailyReveal,
     Gif,
+    RollListResult,
     RollResult,
     UserGifsStats,
     UserInfo,
     UserStatsResult
 )
-from gacha.gacha_probabilities import choose_tier
+from gacha.gacha_probabilities import roll_tier
 
 EASTERN = ZoneInfo("America/New_York")
+
+class NotEnoughRolls(Exception):
+    def __init__(self, have: int, need: int):
+        self.have, self.need = have, need
+        super().__init__(f"Need {need} rolls, have {have}")
 
 class GachaRepo:
     def __init__(self, db: Database):
@@ -101,43 +107,81 @@ class GachaRepo:
             first_of_day=first_of_day
         )
 
+
     # If return None, then error
-    async def roll(self, user_id: int) -> RollResult:
+    async def roll(self, user_id: int, count: int = 1) -> RollListResult:
+        if count < 1:
+            raise ValueError("count must be at least 1")
+
         async with self.db.transaction() as conn:
+            # spend first
             cur = await conn.execute(
                 """
                 UPDATE user_gacha
-                SET roll_count = roll_count - 1
-                WHERE user_id = ? AND roll_count > 0
+                SET roll_count = roll_count - ?
+                WHERE user_id = ? AND roll_count >= ?
                 RETURNING a_pity, s_pity, roll_count
                 """,
-                (user_id,),
+                (count, user_id, count),
             )
             row = await cur.fetchone()
             # Could not subtract roll
             if cur.rowcount == 0 or row is None:
-                raise ValueError("Could not subtract rolls")
+                have = await fetch_value_required(
+                    conn, "SELECT roll_count FROM user_gacha WHERE user_id = ?", (user_id,)
+                )
+                raise NotEnoughRolls(have, count)
 
-            tier, used_pity = choose_tier(row["a_pity"], row["s_pity"])
             roll_count = row["roll_count"]
+            s_pity, a_pity = row["s_pity"], row["a_pity"]
 
-            row = await fetch_required(
-                conn,
+            res: list[RollResult] = []
+
+            for _ in range(count):
+                tier, used_pity, s_pity, a_pity = roll_tier(s_pity, a_pity)
+
+                gif_row = await fetch_required(
+                    conn,
+                    """
+                    SELECT id, url, tier, media_url
+                    FROM gifs
+                    WHERE tier = ?
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                    """,
+                    (tier,)
+                )
+                gif = Gif.from_row(gif_row)
+
+                await conn.execute(
+                    """
+                    INSERT INTO user_gifs (user_id, gif_id) VALUES (?, ?)
+                    """,
+                    (user_id, gif.id)
+                )
+
+                await conn.execute(
+                    """
+                    INSERT INTO pulls (user_id, gif_id, s_pity, a_pity) VALUES (?, ?, ?, ?)
+                    """,
+                    (user_id, gif.id, s_pity, a_pity)
+                )
+                res.append(RollResult(gif, used_pity))
+
+            await conn.execute(
                 """
-                SELECT id, url, tier, media_url
-                FROM gifs
-                WHERE tier = ?
-                ORDER BY RANDOM()
-                LIMIT 1
+                UPDATE user_gacha
+                SET 
+                    s_pity = ?,
+                    a_pity = ?
+                WHERE user_id = ?
                 """,
-                (tier,)
+                (s_pity, a_pity, user_id)
             )
-            gif = Gif.from_row(row)
 
-            return RollResult(
-                gif=gif,
-                num_rolls_left=roll_count,
-                used_pity=used_pity,
+            return RollListResult(
+                roll_list=res,
+                num_rolls_left=roll_count
             )
 
 
@@ -195,6 +239,20 @@ class GachaRepo:
                 user_info=user_info,
                 gif_stats=gif_stats
             )
+
+
+    async def random_gifs_for_test(self, count: int = 10) -> list[Gif]:
+        rows = await self.db.fetch_all(
+            """
+            SELECT id, url, tier, media_url
+            FROM gifs
+            WHERE active = 1
+            ORDER BY RANDOM()
+            LIMIT ?
+            """,
+            (count,)
+        )
+        return [Gif.from_row(row) for row in rows]
 
 
 

@@ -104,7 +104,7 @@ async def fetch_optional(
     async with conn.execute(query, params) as cur:
         return await cur.fetchone()
 
-async def sync_catalog(db: Database, path="gifs.json"):
+async def sync_catalog(db: Database, path="db/gifs.json"):
     with open(path, encoding="utf-8") as f:
         gifs = json.load(f)
 

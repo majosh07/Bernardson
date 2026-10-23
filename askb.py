@@ -7,6 +7,7 @@ from gacha.cog import Gacha
 # from gacha.database import OWNER_ID
 import asyncio
 import signal
+from jokebox.cog import Jokebox
 from logging_config import logger
 from db.core import Database, sync_catalog
 import traceback
@@ -56,18 +57,12 @@ class askBernardson(Bot):
         self.before_invoke(self.before_invoke_hook)
 
         await self.add_cog(Gacha(self, args, self.db))
+        await self.add_cog(Jokebox(self, args))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')
 
-    async def shutdown(self):
-        try:
-            await super().close()
-        finally:
-            if self.db is not None:
-                await self.db.close()
-
-    async def on_command_error(self, ctx, error):
+    async def handle_unexpected_error(self, ctx, error):
         # ignore commands that don't exist, so typos don't spam the console
         if isinstance(error, commands.CommandNotFound):
             return
@@ -81,6 +76,23 @@ class askBernardson(Bot):
 
         traceback.print_exception(type(original), original, original.__traceback__)
         await ctx.send(f"Something went wrong: `{type(original).__name__}: {original}`")
+
+    async def on_command_error(self, ctx, error):
+        # a command-level or cog-level handler already dealt with it
+        if hasattr(ctx.command, "on_error"):
+            return
+        if ctx.cog and ctx.cog.has_error_handler():
+            return
+        await self.handle_unexpected_error(ctx, error)
+
+
+    async def shutdown(self):
+        try:
+            await super().close()
+        finally:
+            if self.db is not None:
+                await self.db.close()
+
 
 @commands.command(aliases=["sh"])
 async def shutdown(ctx):

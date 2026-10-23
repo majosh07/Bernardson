@@ -58,11 +58,17 @@ class DailyResult:
     reveal: DailyReveal
     first_of_day: bool # user did gif of the day
 
+
 @dataclass(frozen=True)
 class RollResult:
     gif: Gif
-    num_rolls_left: int
     used_pity: bool
+
+
+@dataclass(frozen=True)
+class RollListResult:
+    roll_list: list[RollResult]
+    num_rolls_left: int
 
 @dataclass(frozen=True)
 class UserGifsStats:

@@ -1,15 +1,28 @@
-from typing import Optional
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING
 from discord.ext import commands
 import discord.utils
 import shlex
 import random
 from logging_config import logger
 
+if TYPE_CHECKING:
+    from askb import askBernardson
 
 class Jokebox(commands.Cog):
-    def __init__(self, bot, args) -> None:
+    def __init__(self, bot: askBernardson, args) -> None:
         self.bot = bot
         self.args = args
+
+    async def cog_command_error(self, ctx, error): # pyright: ignore
+        if isinstance(error, commands.MissingRequiredArgument):
+            cmd = ctx.command
+            if cmd is not None:
+                usage = f"{ctx.prefix}{cmd.qualified_name} {cmd.signature}"
+            else:
+                usage = "that command"
+            return await ctx.send(f"Missing `{error.param.name}`. Usage: `{usage}`")
+        await self.bot.handle_unexpected_error(ctx, error)
 
     @commands.command()
     async def askb(self, ctx, *, phrase:Optional[str]=None):
@@ -103,7 +116,10 @@ class Jokebox(commands.Cog):
 
 
     @commands.command(aliases=['omgg', 'OMGG'])
-    async def oh_my_goodness_gracious(self, ctx, *, phrase_and_flags):
+    async def oh_my_goodness_gracious(self, ctx, *, phrase_and_flags: str = ""):
+        print("phrase and flags")
+        if not phrase_and_flags.strip():
+            return await ctx.send(f"Usage: `{ctx.prefix}omgg <phrase> [flags]`")
         word_list = shlex.split(phrase_and_flags)
         isBold = False
         for idx, word in enumerate(word_list):

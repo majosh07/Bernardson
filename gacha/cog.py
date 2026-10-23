@@ -32,7 +32,7 @@ class Gacha(commands.Cog):
                 command.usage = data["usage"]
 
     async def cog_check(self, ctx): # pyright: ignore
-        if not config.is_test and ctx.channel.id not in (config.gacha_channel_id):
+        if not config.is_test and ctx.channel.id != config.gacha_channel_id:
             return False
         return True
 

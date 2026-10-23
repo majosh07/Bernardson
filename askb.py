@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-import os
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
@@ -31,12 +30,6 @@ if args.admin:
     args.admin_streak = True
 if args.admin_daily: logger.info("ADMIN DAILY IS TRUE")
 if args.admin_streak: logger.info("ADMIN STREAK IS TRUE")
-
-
-load_dotenv()
-TOKEN = os.environ.get('TOKEN')
-if TOKEN is None:
-  raise ValueError("TOKEN not set correctly, check .env...")
 
 intents = discord.Intents.default()
 intents.message_content= True

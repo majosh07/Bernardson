@@ -12,3 +12,8 @@ db/data/
 
 # Ignore copies
 *.copy
+
+
+*.pyc
+.git/
+.venv/

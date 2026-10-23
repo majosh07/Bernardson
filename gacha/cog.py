@@ -11,11 +11,9 @@ from gacha.utils import get_display_name
 import time
 import random
 
-GACHA_CHANNEL_ID = 1129160056387153990
-TESTING_CHANNEL_ID = 1136423792822997002
+from config import config
 
 SECONDS_IN_A_DAY = 86400
-
 
 class Gacha(commands.Cog):
     def __init__(self, bot, args, db) -> None:
@@ -34,7 +32,7 @@ class Gacha(commands.Cog):
                 command.usage = data["usage"]
 
     async def cog_check(self, ctx): # pyright: ignore
-        if ctx.prefix == ";;" and ctx.channel.id != GACHA_CHANNEL_ID and ctx.channel.id != TESTING_CHANNEL_ID:
+        if not config.is_test and ctx.channel.id not in (config.gacha_channel_id):
             return False
         return True
 

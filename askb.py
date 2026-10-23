@@ -3,14 +3,17 @@ import os
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-from gacha.cog import Gacha
 # from gacha.database import OWNER_ID
 import asyncio
 import signal
+from gacha.cog import Gacha
 from jokebox.cog import Jokebox
+from birthdays.cog import Birthdays
 from logging_config import logger
 from db.core import Database, sync_catalog
 import traceback
+
+from config import config
 
 # handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
@@ -50,7 +53,7 @@ class askBernardson(Bot):
         await self.db.ensure_user(ctx.author.id) # pyright: ignore
 
     async def setup_hook(self) -> None:
-        self.db = Database("db/data/bot.db")
+        self.db = Database(config.db_path)
         await self.db.connect()
 
         await sync_catalog(self.db, "db/gifs.json")
@@ -58,6 +61,7 @@ class askBernardson(Bot):
 
         await self.add_cog(Gacha(self, args, self.db))
         await self.add_cog(Jokebox(self, args))
+        await self.add_cog(Birthdays(self, args, self.db))
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord.')
@@ -102,30 +106,22 @@ async def shutdown(ctx):
 
 load_dotenv()
 
-IS_TESTING_BOT = os.environ.get("TEST_BOT")
-if IS_TESTING_BOT is None:
-    raise ValueError("TEST_BOT not set...")
-IS_TESTING_BOT = IS_TESTING_BOT.lower() in ("true", "1", "t")
-if IS_TESTING_BOT:
-    bot = askBernardson(command_prefix='!', intents=intents)
-else:
-    bot = askBernardson(command_prefix=';;', intents=intents)
-
+bot = askBernardson(command_prefix=config.prefix, intents=intents)
 bot.add_command(shutdown)
 
-async def main(TOKEN):
+async def main(token):
     loop = asyncio.get_event_loop()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.shutdown()))
 
     try:
-        await bot.start(TOKEN)
+        await bot.start(token)
     finally:
         await bot.close()
 
 
-asyncio.run(main(TOKEN))
+asyncio.run(main(config.token))
 
 
 

@@ -101,7 +101,11 @@ async def shutdown(ctx):
         await ctx.bot.close()
 
 load_dotenv()
+
 IS_TESTING_BOT = os.environ.get("TEST_BOT")
+if IS_TESTING_BOT is None:
+    raise ValueError("TEST_BOT not set...")
+IS_TESTING_BOT = IS_TESTING_BOT.lower() in ("true", "1", "t")
 if IS_TESTING_BOT:
     bot = askBernardson(command_prefix='!', intents=intents)
 else:

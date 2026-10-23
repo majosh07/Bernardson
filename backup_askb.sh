@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# assumes we are in the project root
-DB=db/data/bot.db
+REPO="$(cd "$(dirname "$0")" && pwd)"
+DB="$REPO/data/bot.db"
 LOCAL=$HOME/backups
 REMOTE=gdrive:askb-backups
 

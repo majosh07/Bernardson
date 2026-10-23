@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .git/
 .venv/
+
+backup_askb.sh

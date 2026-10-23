@@ -101,7 +101,12 @@ async def shutdown(ctx):
         await ctx.bot.close()
 
 load_dotenv()
-bot = askBernardson(command_prefix=';;', intents=intents)
+IS_TESTING_BOT = os.environ.get("TEST_BOT")
+if IS_TESTING_BOT:
+    bot = askBernardson(command_prefix='!', intents=intents)
+else:
+    bot = askBernardson(command_prefix=';;', intents=intents)
+
 bot.add_command(shutdown)
 
 async def main(TOKEN):

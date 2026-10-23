@@ -117,7 +117,6 @@ class Jokebox(commands.Cog):
 
     @commands.command(aliases=['omgg', 'OMGG'])
     async def oh_my_goodness_gracious(self, ctx, *, phrase_and_flags: str = ""):
-        print("phrase and flags")
         if not phrase_and_flags.strip():
             return await ctx.send(f"Usage: `{ctx.prefix}omgg <phrase> [flags]`")
         word_list = shlex.split(phrase_and_flags)

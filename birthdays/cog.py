@@ -53,6 +53,8 @@ class Birthdays(commands.Cog):
     @birthday.command(name="set")
     async def birthday_set(self, ctx, month: int, day: int, year:int | None = None):
         try:
+            if year is not None and year <= 0:
+                raise ValueError
             proposed = dt.date(year or 2000, month, day)
         except ValueError:
             return await ctx.send("That is not a real date...")
@@ -94,11 +96,14 @@ class Birthdays(commands.Cog):
     async def announce_today(self):
         channel = self.bot.get_channel(config.birthday_channel_id)
         if not isinstance(channel, discord.abc.Messageable):
+            print("Could not message in this channel")
             return
         if not await self.repo.claim_today():
+            print("Already claimed today")
             return
         birthdays = await self.repo.todays_birthdays()
         if not birthdays:
+            print("There were not birthdays today")
             return
 
         # NOTE: this might be a problem if there are too many people on one day

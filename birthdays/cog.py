@@ -1,9 +1,11 @@
 import traceback
+from typing import Optional
 
 import discord
+from discord import Member
 from discord.ext import commands, tasks
 import datetime as dt
-from db.birthday import EASTERN, BirthdayRepo
+from db.birthday import EASTERN, BirthdayRepo, BirthdayDate
 from config import config
 
 
@@ -39,7 +41,14 @@ class Birthdays(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def birthday(self, ctx):
-        await ctx.send(f"Usage: `{ctx.prefix}birthday set <month> <day> [year]` or `{ctx.prefix}birthday remove`")
+        await ctx.send(
+            f"""
+            Usage: 
+                   `{ctx.prefix}birthday set <month> <day> [year]`
+                   `{ctx.prefix}birthday remove`
+                   `{ctx.prefix}birthday check [@mention]`
+            """
+        )
 
     @birthday.command(name="set")
     async def birthday_set(self, ctx, month: int, day: int, year:int | None = None):
@@ -66,6 +75,21 @@ class Birthdays(commands.Cog):
     async def birthday_remove(self, ctx):
         await self.repo.remove_birthday(ctx.author.id)
         await ctx.send("Birthday removed.")
+
+    @birthday.command(name="check")
+    async def birthday_check(self, ctx, member: Optional[Member] = None):
+        user = member or ctx.author
+        try:
+            date: BirthdayDate = await self.repo.check_birthday(user.id)
+        except ValueError:
+            return await ctx.send(f"{user.name} does not have a birthday set...")
+
+        if date.year is not None:
+            str_date = dt.date(date.year, date.month, date.day).strftime("%B %d %Y")
+        else:
+            str_date = dt.date(2000, date.month, date.day).strftime("%B %d")
+        await ctx.send(f"{user.name}'s birthday is {str_date}!")
+
 
     async def announce_today(self):
         channel = self.bot.get_channel(config.birthday_channel_id)

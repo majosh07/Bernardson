@@ -10,6 +10,12 @@ class IdAndAge:
     id: int
     age: int | None
 
+@dataclass(frozen=True)
+class BirthdayDate:
+    month: int
+    day: int
+    year: int | None
+
 class BirthdayRepo:
     def __init__(self, db: Database) -> None:
         self.db = db
@@ -67,6 +73,23 @@ class BirthdayRepo:
         await self.db.execute(
             """DELETE FROM birthdays WHERE user_id = ?""", (user_id, ),
         )
+
+    async def check_birthday(self, user_id: int) -> BirthdayDate:
+        cur = await self.db.execute(
+            """SELECT month, day, year FROM birthdays WHERE user_id = ?""", (user_id, ),
+        )
+        row = await cur.fetchone()
+        if cur.rowcount == 0 or row is None:
+            raise ValueError("User does not have a birthday set...")
+
+        return BirthdayDate(
+            month=row["month"],
+            day=row["day"],
+            year=row["year"],
+        )
+
+
+
 
 
 

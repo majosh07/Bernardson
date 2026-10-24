@@ -92,6 +92,11 @@ class Birthdays(commands.Cog):
             str_date = dt.date(2000, date.month, date.day).strftime("%B %d")
         await ctx.send(f"{user.name}'s birthday is {str_date}!")
 
+    @birthday.command(name="test")
+    async def test(self, ctx):
+        await self.announce_today()
+        print("did annouce")
+
 
     async def announce_today(self):
         channel = self.bot.get_channel(config.birthday_channel_id)

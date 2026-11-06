@@ -201,8 +201,9 @@ class GachaRepo:
                 FROM users AS us 
                 JOIN user_gacha AS ug 
                 ON us.user_id = ?
+                AND ug.user_id = ?;
                 """,
-                (user_id,),
+                (user_id, user_id),
             )
 
             # Could not find user
@@ -211,7 +212,6 @@ class GachaRepo:
                 raise ValueError("User does not exist")
 
             user_info = UserInfo.from_row(row)
-            print(user_info)
 
             row = await fetch_required(
                 conn,

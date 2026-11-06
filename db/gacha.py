@@ -209,8 +209,9 @@ class GachaRepo:
             row = await cur.fetchone()
             if cur.rowcount == 0 or row is None:
                 raise ValueError("User does not exist")
-            
+
             user_info = UserInfo.from_row(row)
+            print(user_info)
 
             row = await fetch_required(
                 conn,

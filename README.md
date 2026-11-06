@@ -56,5 +56,6 @@ Idea
 - scrandle, which gif is better, eventually affect tiering of the things?
 - dueling, kind of like club penguin, would have to give typings?, 
 
+- birthday, if a person sets their birthday, check to see if it is today and announce it
 
 
